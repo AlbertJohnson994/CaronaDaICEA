@@ -1,5 +1,5 @@
 // src/services/geocodingService.js
-import { LOCATION_PRESETS } from "../constants/locations.js";
+import { LOCATION_PRESETS } from "../constants/locations";
 
 /**
  * Calculates distance between two latitude/longitude points in kilometers

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ICECarpool",
-    "slug": "ice-carpool",
+    "name": "Caronas ICEA",
+    "slug": "caronas-icea",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,21 +9,23 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A3D62"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "br.edu.ufop.caronasicea"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0A3D62"
       },
-      "package": "com.icea.icecarpool"
+      "package": "br.edu.ufop.caronasicea"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     }
   }
 }
