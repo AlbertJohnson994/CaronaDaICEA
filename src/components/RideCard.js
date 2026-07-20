@@ -106,6 +106,14 @@ const RideCard = ({ ride, onPress, carPhoto, currentUserId }) => {
           <Text style={styles.footerText}>
             {formatTime(departureTime)} • {formatDate(departureTime)}
           </Text>
+          {ride.distanceKm ? (
+            <View style={styles.distanceBadge}>
+              <Ionicons name="navigate-circle-outline" size={13} color={COLORS.primary} style={{ marginRight: 2 }} />
+              <Text style={styles.distanceBadgeText}>
+                {ride.distanceKm} km • ~{ride.estimatedMinutes || 10} min
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
@@ -274,6 +282,20 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     marginLeft: 6,
     color: COLORS.textSecondary,
+  },
+  distanceBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.accentLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    marginLeft: 6,
+  },
+  distanceBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.primary,
   },
   statusBadge: {
     flexDirection: "row",

@@ -203,11 +203,22 @@ const RideScreen = ({ route, navigation }) => {
   };
 
   const handleGoogleMaps = () => {
-    openGoogleMapsRoute({ origin: ride.from, destination: ride.to });
+    openGoogleMapsRoute({
+      origin: ride.from,
+      destination: ride.to,
+      fromLat: ride.fromLat,
+      fromLng: ride.fromLng,
+      toLat: ride.toLat,
+      toLng: ride.toLng,
+    });
   };
 
   const handleWaze = () => {
-    openWazeRoute({ destination: ride.to });
+    openWazeRoute({
+      destination: ride.to,
+      toLat: ride.toLat,
+      toLng: ride.toLng,
+    });
   };
 
   const handleShare = () => {

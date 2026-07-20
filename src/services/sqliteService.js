@@ -1,6 +1,8 @@
 // src/services/sqliteService.js
 import * as SQLite from "expo-sqlite";
 import { hashPassword, verifyPassword, generateRidePin } from "../utils/security";
+import { getFullAddressForLocation, getLocationCoordinates } from "../constants/locations";
+import { calculateHaversineDistance } from "./geocodingService";
 
 // Open SQLite database
 const db = SQLite.openDatabase("ice_carpool.db");
@@ -51,39 +53,55 @@ export const notifyRidesChanged = async () => {
 };
 
 // Map database row to Firestore-compatible ride object
-export const mapRideFromDb = (row) => ({
-  id: row.id,
-  from: row.from_place,
-  to: row.to_place,
-  price: row.price,
-  totalSeats: row.totalSeats,
-  availableSeats: row.availableSeats,
-  departureTime: {
-    toDate: () => new Date(row.departureTime),
-  },
-  notes: row.notes,
-  vehicle: row.vehicle,
-  licensePlate: row.licensePlate,
-  carPhotoUri: row.carPhotoUri,
-  driverId: row.driverId,
-  driverName: row.driverName,
-  driverRating: row.driverRating || 0,
-  createdAt: {
-    toDate: () => new Date(row.createdAt),
-  },
-  cancelled: row.cancelled === 1,
-  cancelledAt: row.cancelledAt
-    ? { toDate: () => new Date(row.cancelledAt) }
-    : null,
-  completed: row.completed === 1,
-  completedAt: row.completedAt
-    ? { toDate: () => new Date(row.completedAt) }
-    : null,
-  passengers: JSON.parse(row.passengers || "[]"),
-  ratings: JSON.parse(row.ratings || "[]"),
-  startPin: row.startPin || "1234",
-  status: row.status || (row.completed ? "COMPLETED" : row.cancelled ? "CANCELLED" : "SCHEDULED"),
-});
+export const mapRideFromDb = (row) => {
+  const fromLat = row.fromLat || getLocationCoordinates(row.from_place).lat;
+  const fromLng = row.fromLng || getLocationCoordinates(row.from_place).lng;
+  const toLat = row.toLat || getLocationCoordinates(row.to_place).lat;
+  const toLng = row.toLng || getLocationCoordinates(row.to_place).lng;
+  const geoCalc = calculateHaversineDistance(fromLat, fromLng, toLat, toLng);
+
+  return {
+    id: row.id,
+    from: row.from_place,
+    to: row.to_place,
+    fromAddress: row.fromAddress || getFullAddressForLocation(row.from_place),
+    fromLat,
+    fromLng,
+    toAddress: row.toAddress || getFullAddressForLocation(row.to_place),
+    toLat,
+    toLng,
+    distanceKm: row.distanceKm || geoCalc?.distanceKm || 5.2,
+    estimatedMinutes: row.estimatedMinutes || geoCalc?.estimatedMinutes || 11,
+    price: row.price,
+    totalSeats: row.totalSeats,
+    availableSeats: row.availableSeats,
+    departureTime: {
+      toDate: () => new Date(row.departureTime),
+    },
+    notes: row.notes,
+    vehicle: row.vehicle,
+    licensePlate: row.licensePlate,
+    carPhotoUri: row.carPhotoUri,
+    driverId: row.driverId,
+    driverName: row.driverName,
+    driverRating: row.driverRating || 0,
+    createdAt: {
+      toDate: () => new Date(row.createdAt),
+    },
+    cancelled: row.cancelled === 1,
+    cancelledAt: row.cancelledAt
+      ? { toDate: () => new Date(row.cancelledAt) }
+      : null,
+    completed: row.completed === 1,
+    completedAt: row.completedAt
+      ? { toDate: () => new Date(row.completedAt) }
+      : null,
+    passengers: JSON.parse(row.passengers || "[]"),
+    ratings: JSON.parse(row.ratings || "[]"),
+    startPin: row.startPin || "1234",
+    status: row.status || (row.completed ? "COMPLETED" : row.cancelled ? "CANCELLED" : "SCHEDULED"),
+  };
+};
 
 // Map database row to User object
 export const mapUserFromDb = (row) => ({
@@ -177,6 +195,14 @@ export const initDatabase = async () => {
     try { await executeSql(`ALTER TABLE rides ADD COLUMN carPhotoUri TEXT;`, [], { silent: true }); } catch (e) {}
     try { await executeSql(`ALTER TABLE rides ADD COLUMN startPin TEXT;`, [], { silent: true }); } catch (e) {}
     try { await executeSql(`ALTER TABLE rides ADD COLUMN status TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN fromAddress TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN fromLat REAL;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN fromLng REAL;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN toAddress TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN toLat REAL;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN toLng REAL;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN distanceKm REAL;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN estimatedMinutes INTEGER;`, [], { silent: true }); } catch (e) {}
 
     // 3. Create Transactions Table (10% Admin Commission System)
     await executeSql(`
@@ -493,16 +519,40 @@ export const createRideInDb = async (
   const now = new Date().toISOString();
   const startPin = generateRidePin();
 
+  const fromCoords = rideData.fromLat && rideData.fromLng
+    ? { lat: rideData.fromLat, lng: rideData.fromLng }
+    : getLocationCoordinates(rideData.from);
+  const toCoords = rideData.toLat && rideData.toLng
+    ? { lat: rideData.toLat, lng: rideData.toLng }
+    : getLocationCoordinates(rideData.to);
+
+  const geoCalc = calculateHaversineDistance(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng);
+  const distanceKm = rideData.distanceKm || geoCalc?.distanceKm || 5.2;
+  const estimatedMinutes = rideData.estimatedMinutes || geoCalc?.estimatedMinutes || 11;
+  const fromAddress = rideData.fromAddress || getFullAddressForLocation(rideData.from);
+  const toAddress = rideData.toAddress || getFullAddressForLocation(rideData.to);
+
   try {
     await executeSql(
       `
-      INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, carPhotoUri, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, '[]', '[]', ?, 'SCHEDULED');
+      INSERT INTO rides (
+        id, from_place, to_place, fromAddress, fromLat, fromLng, toAddress, toLat, toLng, distanceKm, estimatedMinutes,
+        price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, carPhotoUri, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, '[]', '[]', ?, 'SCHEDULED');
     `,
       [
         id,
         rideData.from.trim(),
         rideData.to.trim(),
+        fromAddress,
+        fromCoords.lat,
+        fromCoords.lng,
+        toAddress,
+        toCoords.lat,
+        toCoords.lng,
+        distanceKm,
+        estimatedMinutes,
         rideData.price,
         rideData.totalSeats,
         rideData.availableSeats,

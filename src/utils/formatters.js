@@ -110,11 +110,12 @@ export const shareRideInfo = async (ride) => {
   }
 };
 
-export const openGoogleMapsRoute = async ({ origin, destination }) => {
-  const fullOrigin = getFullAddressForLocation(origin);
-  const fullDest = getFullAddressForLocation(destination);
-  const queryOrigin = origin ? encodeURIComponent(fullOrigin) : "";
-  const queryDest = encodeURIComponent(fullDest);
+export const openGoogleMapsRoute = async ({ origin, destination, fromLat, fromLng, toLat, toLng }) => {
+  const originCoords = fromLat && fromLng ? { lat: fromLat, lng: fromLng } : getLocationCoordinates(origin);
+  const destCoords = toLat && toLng ? { lat: toLat, lng: toLng } : getLocationCoordinates(destination);
+
+  const queryOrigin = `${originCoords.lat},${originCoords.lng}`;
+  const queryDest = `${destCoords.lat},${destCoords.lng}`;
   const url = `https://www.google.com/maps/dir/?api=1&origin=${queryOrigin}&destination=${queryDest}&travelmode=driving`;
 
   try {
@@ -130,10 +131,9 @@ export const openGoogleMapsRoute = async ({ origin, destination }) => {
   }
 };
 
-export const openWazeRoute = async ({ destination }) => {
-  const fullDest = getFullAddressForLocation(destination);
-  const queryDest = encodeURIComponent(fullDest);
-  const url = `https://waze.com/ul?q=${queryDest}&navigate=yes`;
+export const openWazeRoute = async ({ destination, toLat, toLng }) => {
+  const destCoords = toLat && toLng ? { lat: toLat, lng: toLng } : getLocationCoordinates(destination);
+  const url = `https://waze.com/ul?ll=${destCoords.lat},${destCoords.lng}&navigate=yes`;
 
   try {
     const supported = await Linking.canOpenURL(url);
@@ -141,7 +141,8 @@ export const openWazeRoute = async ({ destination }) => {
       await Linking.openURL(url);
     } else {
       // Fallback web url
-      await Linking.openURL(`https://www.waze.com/live-map/directions?to=ll.${queryDest}`);
+      const fullDest = getFullAddressForLocation(destination);
+      await Linking.openURL(`https://www.waze.com/live-map/directions?to=ll.${encodeURIComponent(fullDest)}`);
     }
   } catch (error) {
     console.error("Waze error:", error);
