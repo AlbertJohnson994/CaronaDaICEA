@@ -84,7 +84,7 @@ const RideCard = ({ ride, onPress, carPhoto, currentUserId }) => {
               {ride.from}
             </Text>
           </View>
-          <View style={styles.placeRow}>
+          <View style={[styles.placeRow, styles.placeRowDestination]}>
             <Text style={styles.placeLabel}>DESTINO</Text>
             <Text style={styles.placeName} numberOfLines={1}>
               {ride.to}
@@ -206,12 +206,14 @@ const styles = StyleSheet.create({
   },
   routeContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "stretch",
+    paddingVertical: SPACING.xs,
   },
   timelineColumn: {
     alignItems: "center",
     width: 20,
     marginRight: SPACING.sm,
+    paddingVertical: 6,
   },
   dot: {
     width: 10,
@@ -226,23 +228,27 @@ const styles = StyleSheet.create({
   },
   verticalLine: {
     width: 2,
-    height: 22,
+    flex: 1,
+    minHeight: 28,
     backgroundColor: COLORS.border,
-    marginVertical: 2,
+    marginVertical: 4,
   },
   placesColumn: {
     flex: 1,
-    justifyContent: "space-between",
-  },
-  placeRow: {
-    height: 24,
     justifyContent: "center",
   },
+  placeRow: {
+    justifyContent: "center",
+  },
+  placeRowDestination: {
+    marginTop: SPACING.sm + 2,
+  },
   placeLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "700",
     color: COLORS.textMuted,
     letterSpacing: 0.5,
+    marginBottom: 1,
   },
   placeName: {
     ...TYPOGRAPHY.bodyBold,
