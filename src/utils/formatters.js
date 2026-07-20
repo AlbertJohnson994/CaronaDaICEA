@@ -1,5 +1,6 @@
 // src/utils/formatters.js
 import { Linking, Share, Alert } from "react-native";
+import { getFullAddressForLocation } from "../constants/locations";
 /* global Intl */
 
 export const formatTime = (date) => {
@@ -110,8 +111,10 @@ export const shareRideInfo = async (ride) => {
 };
 
 export const openGoogleMapsRoute = async ({ origin, destination }) => {
-  const queryOrigin = origin ? encodeURIComponent(origin + ", João Monlevade, MG") : "";
-  const queryDest = encodeURIComponent((destination || "") + ", João Monlevade, MG");
+  const fullOrigin = getFullAddressForLocation(origin);
+  const fullDest = getFullAddressForLocation(destination);
+  const queryOrigin = origin ? encodeURIComponent(fullOrigin) : "";
+  const queryDest = encodeURIComponent(fullDest);
   const url = `https://www.google.com/maps/dir/?api=1&origin=${queryOrigin}&destination=${queryDest}&travelmode=driving`;
 
   try {
@@ -128,7 +131,8 @@ export const openGoogleMapsRoute = async ({ origin, destination }) => {
 };
 
 export const openWazeRoute = async ({ destination }) => {
-  const queryDest = encodeURIComponent((destination || "") + ", João Monlevade, MG");
+  const fullDest = getFullAddressForLocation(destination);
+  const queryDest = encodeURIComponent(fullDest);
   const url = `https://waze.com/ul?q=${queryDest}&navigate=yes`;
 
   try {

@@ -257,7 +257,7 @@ export const initDatabase = async () => {
       await executeSql(
         `
         INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status)
-        VALUES ('ride_seed_1', 'ICEA', 'Centro', 5.00, 4, 4, ?, 'Saída pontual do bloco A.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '1234', 'SCHEDULED');
+        VALUES ('ride_seed_1', 'Campus ICEA (UFOP)', 'Centro João Monlevade', 5.00, 4, 4, ?, 'Saída pontual da portaria principal.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '1234', 'SCHEDULED');
       `,
         [tomorrow.toISOString(), new Date().toISOString()],
       );
@@ -265,7 +265,7 @@ export const initDatabase = async () => {
       await executeSql(
         `
         INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status)
-        VALUES ('ride_seed_2', 'Terminal', 'ICEA', 6.50, 3, 3, ?, 'Plataforma 2.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '5678', 'SCHEDULED');
+        VALUES ('ride_seed_2', 'Terminal Rodoviário', 'Campus ICEA (UFOP)', 6.50, 3, 3, ?, 'Plataforma 2 da Rodoviária.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '5678', 'SCHEDULED');
       `,
         [dayAfterTomorrow.toISOString(), new Date().toISOString()],
       );

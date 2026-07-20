@@ -19,14 +19,7 @@ import PhotoUploadModal from "../components/PhotoUploadModal";
 import PhotoDisplay from "../components/PhotoDisplay";
 import ToastNotification from "../components/ToastNotification";
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../constants/theme";
-
-const PRESET_LOCATIONS = [
-  "Campus ICEA",
-  "Centro João Monlevade",
-  "Terminal Rodoviário",
-  "Carneirinhos",
-  "Bairro Novo Horizonte",
-];
+import { LOCATION_PRESETS } from "../constants/locations";
 
 const CreateRideScreen = ({ navigation }) => {
   const { createRide } = useContext(RideContext);
@@ -150,13 +143,13 @@ const CreateRideScreen = ({ navigation }) => {
             placeholderTextColor={COLORS.textMuted}
           />
           <View style={styles.presetRow}>
-            {PRESET_LOCATIONS.slice(0, 3).map((loc) => (
+            {LOCATION_PRESETS.slice(0, 3).map((loc) => (
               <TouchableOpacity
-                key={`from_${loc}`}
-                style={[styles.presetChip, from === loc && styles.presetChipActive]}
-                onPress={() => setFrom(loc)}
+                key={`from_${loc.id}`}
+                style={[styles.presetChip, from === loc.title && styles.presetChipActive]}
+                onPress={() => setFrom(loc.title)}
               >
-                <Text style={[styles.presetText, from === loc && styles.presetTextActive]}>{loc}</Text>
+                <Text style={[styles.presetText, from === loc.title && styles.presetTextActive]}>{loc.title}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -173,13 +166,13 @@ const CreateRideScreen = ({ navigation }) => {
             placeholderTextColor={COLORS.textMuted}
           />
           <View style={styles.presetRow}>
-            {PRESET_LOCATIONS.map((loc) => (
+            {LOCATION_PRESETS.map((loc) => (
               <TouchableOpacity
-                key={`to_${loc}`}
-                style={[styles.presetChip, to === loc && styles.presetChipActive]}
-                onPress={() => setTo(loc)}
+                key={`to_${loc.id}`}
+                style={[styles.presetChip, to === loc.title && styles.presetChipActive]}
+                onPress={() => setTo(loc.title)}
               >
-                <Text style={[styles.presetText, to === loc && styles.presetTextActive]}>{loc}</Text>
+                <Text style={[styles.presetText, to === loc.title && styles.presetTextActive]}>{loc.title}</Text>
               </TouchableOpacity>
             ))}
           </View>
