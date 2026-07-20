@@ -24,7 +24,7 @@ import {
   completeRideInDb,
   getUserProfileInDb,
 } from "../services/sqliteService";
-import { formatTime, formatDate, openWhatsAppContact, shareRideInfo } from "../utils/formatters";
+import { formatTime, formatDate, openWhatsAppContact, shareRideInfo, openGoogleMapsRoute, openWazeRoute } from "../utils/formatters";
 import CustomButton from "../components/CustomButton";
 import PhotoDisplay from "../components/PhotoDisplay";
 import RouteMap from "../components/RouteMap";
@@ -200,6 +200,14 @@ const RideScreen = ({ route, navigation }) => {
       const targetPhone = driverInfo?.phone;
       openWhatsAppContact({ phone: targetPhone, name: user.name, ride, isDriver: false });
     }
+  };
+
+  const handleGoogleMaps = () => {
+    openGoogleMapsRoute({ origin: ride.from, destination: ride.to });
+  };
+
+  const handleWaze = () => {
+    openWazeRoute({ destination: ride.to });
   };
 
   const handleShare = () => {
@@ -384,6 +392,19 @@ const RideScreen = ({ route, navigation }) => {
 
         {/* ACTION BUTTONS & COMMUNICATION */}
         <View style={styles.actionsSection}>
+          {/* GPS Navigation Row (Google Maps & Waze) */}
+          <View style={styles.navRow}>
+            <TouchableOpacity style={styles.googleMapsBtn} onPress={handleGoogleMaps} activeOpacity={0.85}>
+              <Ionicons name="map-outline" size={18} color={COLORS.surface} style={{ marginRight: 6 }} />
+              <Text style={styles.navBtnText}>Google Maps</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.wazeBtn} onPress={handleWaze} activeOpacity={0.85}>
+              <Ionicons name="navigate-outline" size={18} color={COLORS.surface} style={{ marginRight: 6 }} />
+              <Text style={styles.navBtnText}>Waze GPS</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* WhatsApp & SOS Row */}
           <View style={styles.commRow}>
             <TouchableOpacity style={styles.whatsAppBtn} onPress={handleWhatsApp} activeOpacity={0.85}>
@@ -828,6 +849,37 @@ const styles = StyleSheet.create({
   sosBtnText: {
     ...TYPOGRAPHY.bodyBold,
     color: COLORS.textPrimary,
+    fontSize: 13,
+  },
+  navRow: {
+    flexDirection: "row",
+    marginBottom: SPACING.sm,
+  },
+  googleMapsBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#4285F4",
+    paddingVertical: SPACING.md - 2,
+    borderRadius: RADIUS.lg,
+    marginRight: SPACING.xs,
+    ...SHADOWS.small,
+  },
+  wazeBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#05C3DD",
+    paddingVertical: SPACING.md - 2,
+    borderRadius: RADIUS.lg,
+    marginLeft: SPACING.xs,
+    ...SHADOWS.small,
+  },
+  navBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    color: COLORS.surface,
     fontSize: 13,
   },
   modalOverlay: {

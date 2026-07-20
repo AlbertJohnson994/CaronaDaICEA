@@ -108,3 +108,39 @@ export const shareRideInfo = async (ride) => {
     console.error("Share error:", error);
   }
 };
+
+export const openGoogleMapsRoute = async ({ origin, destination }) => {
+  const queryOrigin = origin ? encodeURIComponent(origin + ", João Monlevade, MG") : "";
+  const queryDest = encodeURIComponent((destination || "") + ", João Monlevade, MG");
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${queryOrigin}&destination=${queryDest}&travelmode=driving`;
+
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Erro", "Não foi possível abrir o Google Maps.");
+    }
+  } catch (error) {
+    console.error("Google Maps error:", error);
+    Alert.alert("Erro", "Falha ao abrir Google Maps.");
+  }
+};
+
+export const openWazeRoute = async ({ destination }) => {
+  const queryDest = encodeURIComponent((destination || "") + ", João Monlevade, MG");
+  const url = `https://waze.com/ul?q=${queryDest}&navigate=yes`;
+
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      // Fallback web url
+      await Linking.openURL(`https://www.waze.com/live-map/directions?to=ll.${queryDest}`);
+    }
+  } catch (error) {
+    console.error("Waze error:", error);
+    Alert.alert("Erro", "Falha ao abrir o Waze.");
+  }
+};
