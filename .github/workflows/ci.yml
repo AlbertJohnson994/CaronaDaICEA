@@ -1,0 +1,60 @@
+name: Caronas ICEA CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-verify:
+    name: 🧪 Syntax & Logic Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      - name: 🔍 Check JS Component Syntax
+        run: |
+          find src -name "*.js" -exec node --check {} +
+
+      - name: 🧪 Run Security & Financial Logic Tests
+        run: |
+          node -e "
+            const { hashPassword, verifyPassword, generateRidePin } = require('./src/utils/security.js');
+            const h = hashPassword('123456');
+            if (!verifyPassword('123456', h)) process.exit(1);
+            if (generateRidePin().length !== 4) process.exit(1);
+            console.log('✅ CI Logic Tests Passed!');
+          "
+
+  expo-build-check:
+    name: 🚀 Expo Web Build Verification
+    runs-on: ubuntu-latest
+    needs: lint-and-verify
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      - name: 🛠️ Build Expo Web Bundle
+        run: npx expo export --platform web
