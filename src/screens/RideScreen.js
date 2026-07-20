@@ -89,10 +89,10 @@ const RideScreen = ({ route, navigation }) => {
   const departureDate = ride ? (ride.departureTime?.toDate ? ride.departureTime.toDate() : new Date(ride.departureTime)) : new Date();
   const isPast = ride && departureDate < new Date();
 
-  // Financial calculations (10% Platform fee, 90% Driver Net)
+  // Financial calculations (25% Platform fee, 75% Driver Net)
   const grossPrice = Number(ride?.price || 0);
-  const platformFee = Number((grossPrice * 0.10).toFixed(2));
-  const driverNet = Number((grossPrice * 0.90).toFixed(2));
+  const platformFee = Number((grossPrice * 0.25).toFixed(2));
+  const driverNet = Number((grossPrice * 0.75).toFixed(2));
 
   const handleOpenPaymentModal = () => {
     if (!user) return;
@@ -465,11 +465,11 @@ const RideScreen = ({ route, navigation }) => {
                 <Text style={styles.breakdownValueText}>R$ {grossPrice.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownLine}>
-                <Text style={styles.breakdownLabelText}>Taxa da Plataforma (10%):</Text>
+                <Text style={styles.breakdownLabelText}>Taxa da Plataforma (25%):</Text>
                 <Text style={[styles.breakdownValueText, { color: COLORS.warning }]}>R$ {platformFee.toFixed(2)}</Text>
               </View>
               <View style={styles.breakdownLine}>
-                <Text style={styles.breakdownLabelText}>Repasse ao Motorista (90%):</Text>
+                <Text style={styles.breakdownLabelText}>Repasse ao Motorista (75%):</Text>
                 <Text style={[styles.breakdownValueText, { color: COLORS.success }]}>R$ {driverNet.toFixed(2)}</Text>
               </View>
             </View>

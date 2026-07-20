@@ -108,11 +108,11 @@ const WalletScreen = ({ navigation }) => {
         <View style={styles.headerCard}>
           <Text style={styles.headerTitle}>Carteira & Finanças ICEA</Text>
           <Text style={styles.headerSubtitle}>
-            Gestão transparente de recebimentos e taxa de 10% da plataforma
+            Gestão transparente de recebimentos e taxa de 25% da plataforma
           </Text>
 
           <View style={styles.mainBalanceContainer}>
-            <Text style={styles.balanceLabel}>Saldo Líquido Disponível (90%)</Text>
+            <Text style={styles.balanceLabel}>Saldo Líquido Disponível (75%)</Text>
             <Text style={styles.balanceAmount}>
               R$ {Number(walletStats.walletBalance || walletStats.totalNet).toFixed(2)}
             </Text>
@@ -133,7 +133,7 @@ const WalletScreen = ({ navigation }) => {
               <Text style={[styles.breakdownNumber, { color: COLORS.warning }]}>
                 R$ {Number(walletStats.totalCommission).toFixed(2)}
               </Text>
-              <Text style={styles.breakdownLabel}>Taxa Admin (10%)</Text>
+              <Text style={styles.breakdownLabel}>Taxa Admin (25%)</Text>
             </View>
           </View>
         </View>
@@ -229,7 +229,7 @@ const WalletScreen = ({ navigation }) => {
                     <Text style={styles.txDateText}>
                       {formatDate(new Date(tx.createdAt))} • {formatTime(new Date(tx.createdAt))}
                     </Text>
-                    <Text style={styles.txFeeText}>Taxa da Plataforma (10%): R$ {Number(tx.platformFee).toFixed(2)}</Text>
+                    <Text style={styles.txFeeText}>Taxa da Plataforma (25%): R$ {Number(tx.platformFee).toFixed(2)}</Text>
                   </View>
                   <Text style={styles.txNetAmount}>+ R$ {Number(tx.driverNet).toFixed(2)}</Text>
                 </View>

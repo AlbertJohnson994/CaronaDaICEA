@@ -125,7 +125,7 @@ const AdminScreen = () => {
           onPress={() => setActiveTab('revenue')}
         >
           <Ionicons name="cash-outline" size={18} color={activeTab === 'revenue' ? COLORS.primary : COLORS.textMuted} />
-          <Text style={[styles.tabText, activeTab === 'revenue' && styles.activeTabText]}>Comissões (10%)</Text>
+          <Text style={[styles.tabText, activeTab === 'revenue' && styles.activeTabText]}>Comissões (25%)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -156,10 +156,10 @@ const AdminScreen = () => {
               {/* Financial Revenue Summary */}
               <View style={styles.revenueCard}>
                 <Text style={styles.revenueTitle}>Receita de Comissões da Plataforma</Text>
-                <Text style={styles.revenueSubtitle}>Taxa padrão de 10% cobrada por corrida intermediada</Text>
+                <Text style={styles.revenueSubtitle}>Taxa padrão de 25% cobrada por corrida intermediada</Text>
 
                 <View style={styles.revenueMainBox}>
-                  <Text style={styles.revenueLabel}>Receita Acumulada do Admin (10%)</Text>
+                  <Text style={styles.revenueLabel}>Receita Acumulada do Admin (25%)</Text>
                   <Text style={styles.revenueAmount}>
                     R$ {Number(financialStats.totalPlatformRevenue).toFixed(2)}
                   </Text>
@@ -211,8 +211,8 @@ const AdminScreen = () => {
 
                     <View style={styles.txValuesRow}>
                       <Text style={styles.valGross}>Bruto: R$ {Number(tx.grossAmount).toFixed(2)}</Text>
-                      <Text style={styles.valFee}>Comissão Admin (10%): +R$ {Number(tx.platformFee).toFixed(2)}</Text>
-                      <Text style={styles.valNet}>Motorista (90%): R$ {Number(tx.driverNet).toFixed(2)}</Text>
+                      <Text style={styles.valFee}>Comissão Admin (25%): +R$ {Number(tx.platformFee).toFixed(2)}</Text>
+                      <Text style={styles.valNet}>Motorista (75%): R$ {Number(tx.driverNet).toFixed(2)}</Text>
                     </View>
                   </View>
                 ))

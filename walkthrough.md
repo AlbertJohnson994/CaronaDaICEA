@@ -1,6 +1,6 @@
 # Walkthrough: Caronas ICEA - Master Architecture, Migration & Upgrades
 
-We have successfully migrated the **Caronas ICEA** application database from **Firebase (Firestore + Authentication)** to local **SQLite** storage using `expo-sqlite` and `AsyncStorage`, fixed all known legacy bugs, and transformed the app into a professional, highly secure, strictly validated, and user-friendly mobile application with a complete 10% platform commission engine.
+We have successfully migrated the **Caronas ICEA** application database from **Firebase (Firestore + Authentication)** to local **SQLite** storage using `expo-sqlite` and `AsyncStorage`, fixed all known legacy bugs, and transformed the app into a professional, highly secure, strictly validated, and user-friendly mobile application with a complete 25% platform commission engine.
 
 ---
 
@@ -74,27 +74,27 @@ Created a robust database management file at [sqliteService.js](src/services/sql
 
 ---
 
-## 💰 Part 5: Payment, Receipts & 10% Platform Commission System
+## 💰 Part 5: Payment, Receipts & 25% Platform Commission System
 
 ```mermaid
 graph TD
   Pass[Passageiro Reserva Vaga] --> Method[Seleção: Pix, Dinheiro ou Saldo App]
   Method --> Calc[Cálculo de Comissão Automático]
   
-  Calc --> AdminFee[10% Taxa da Plataforma / Admin]
-  Calc --> DriverNet[90% Crédito Líquido na Carteira do Motorista]
+  Calc --> AdminFee[25% Taxa da Plataforma / Admin]
+  Calc --> DriverNet[75% Crédito Líquido na Carteira do Motorista]
   
   DriverNet --> Wallet[WalletScreen.js Carteira]
   AdminFee --> AdminPanel[AdminScreen.js Painel de Receita]
 ```
 
-* **10% Admin Commission Engine:**
-  * **Platform Fee**: **10%** automatically retained per reservation.
-  * **Driver Net Payout**: **90%** credited to driver's digital wallet.
-  * *Example*: A **R$ 10,00** fare yields **R$ 9,00** for the driver and **R$ 1,00** for the platform.
-* **Wallet Screen ([WalletScreen.js](src/screens/WalletScreen.js)):** Driver financial dashboard displaying net balance (90%), total gross volume, platform commission paid (10%), transaction log, and Pix Key configuration.
+* **25% Admin Commission Engine:**
+  * **Platform Fee**: **25%** automatically retained per reservation.
+  * **Driver Net Payout**: **75%** credited to driver's digital wallet.
+  * *Example*: A **R$ 10,00** fare yields **R$ 7,50** for the driver and **R$ 2,50** for the platform.
+* **Wallet Screen ([WalletScreen.js](src/screens/WalletScreen.js)):** Driver financial dashboard displaying net balance (75%), total gross volume, platform commission paid (25%), transaction log, and Pix Key configuration.
 * **Payment Selector ([RideScreen.js](src/screens/RideScreen.js)):** Passengers select payment method (Pix, Cash, App Wallet) with 1-tap **"Copiar Chave Pix"** button.
-* **Admin Revenue Audit ([AdminScreen.js](src/screens/AdminScreen.js)):** Admin tab displaying total 10% commission revenue, total volume processed, and system-wide transaction log.
+* **Admin Revenue Audit ([AdminScreen.js](src/screens/AdminScreen.js)):** Admin tab displaying total 25% commission revenue, total volume processed, and system-wide transaction log.
 
 ---
 
@@ -112,7 +112,7 @@ graph TD
 4. **WhatsApp & SOS Test:**
    - Tap **Falar no WhatsApp** to verify pre-filled deep links.
    - Tap **SOS / Enviar** to verify native share sheet.
-5. **Financial Commission Test:**
+5. **Financial 25% Commission Test:**
    - Reserve a **R$ 10,00** seat selecting Pix payment method.
-   - Open **Carteira** as Driver to confirm **+R$ 9,00** net credit.
-   - Log in as Admin to confirm **+R$ 1,00** platform revenue in **Admin -> Comissões**.
+   - Open **Carteira** as Driver to confirm **+R$ 7,50** net credit.
+   - Log in as Admin to confirm **+R$ 2,50** platform revenue in **Admin -> Comissões (25%)**.

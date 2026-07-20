@@ -270,11 +270,11 @@ export const initDatabase = async () => {
         [dayAfterTomorrow.toISOString(), new Date().toISOString()],
       );
 
-      // Seed mock completed transaction (10% fee)
+      // Seed mock completed transaction (25% fee)
       await executeSql(
         `
         INSERT INTO transactions (id, rideId, passengerId, passengerName, driverId, driverName, grossAmount, platformFee, driverNet, paymentMethod, status, createdAt)
-        VALUES ('tx_seed_1', 'ride_seed_demo', 'passenger_uid', 'Mariana Passageira', 'driver_uid', 'Gabriel Motorista', 10.00, 1.00, 9.00, 'PIX', 'PAID', ?);
+        VALUES ('tx_seed_1', 'ride_seed_demo', 'passenger_uid', 'Mariana Passageira', 'driver_uid', 'Gabriel Motorista', 10.00, 2.50, 7.50, 'PIX', 'PAID', ?);
       `,
         [new Date().toISOString()],
       );
@@ -591,10 +591,10 @@ export const reserveSeatInDb = async (rideId, userId, paymentMethod = 'PIX') => 
     const userRes = await executeSql("SELECT name FROM users WHERE uid = ?;", [userId]);
     const passengerName = userRes.rows.length > 0 ? userRes.rows._array[0].name : "Passageiro UFOP";
 
-    // 10% Platform Commission Calculation
+    // 25% Platform Commission Calculation
     const grossAmount = Number(ride.price || 0);
-    const platformFee = Number((grossAmount * 0.10).toFixed(2)); // 10% Admin Fee
-    const driverNet = Number((grossAmount * 0.90).toFixed(2));    // 90% Driver Net
+    const platformFee = Number((grossAmount * 0.25).toFixed(2)); // 25% Admin Fee
+    const driverNet = Number((grossAmount * 0.75).toFixed(2));    // 75% Driver Net
 
     // Record Transaction
     const txId = "tx_" + Math.random().toString(36).substr(2, 9);
