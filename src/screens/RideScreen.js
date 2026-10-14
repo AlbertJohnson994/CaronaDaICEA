@@ -24,7 +24,16 @@ import {
   completeRideInDb,
   getUserProfileInDb,
 } from "../services/sqliteService";
-import { formatTime, formatDate, openWhatsAppContact, shareRideInfo, openGoogleMapsRoute, openWazeRoute } from "../utils/formatters";
+import { 
+  formatTime, 
+  formatDate, 
+  openWhatsAppContact, 
+  shareRideInfo, 
+  openGoogleMapsRoute, 
+  openWazeRoute,
+  openDirectWhatsApp 
+} from "../utils/formatters";
+import { generatePixCopiaECola } from "../utils/pixPayload";
 import CustomButton from "../components/CustomButton";
 import PhotoDisplay from "../components/PhotoDisplay";
 import RouteMap from "../components/RouteMap";
@@ -93,6 +102,15 @@ const RideScreen = ({ route, navigation }) => {
   const grossPrice = Number(ride?.price || 0);
   const platformFee = Number((grossPrice * 0.25).toFixed(2));
   const driverNet = Number((grossPrice * 0.75).toFixed(2));
+
+  // Generate Dynamic Pix Payload
+  const dynamicPixPayload = generatePixCopiaECola({
+    pixKey: driverInfo?.pixKey || "admin@ufop.edu.br",
+    merchantName: (driverInfo?.name || "Motorista ICEA").substring(0, 25),
+    merchantCity: "Joao Monlevade",
+    amount: grossPrice,
+    txid: (ride?.id || "CARONA").replace(/[^a-zA-Z0-9]/g, "").substring(0, 20),
+  });
 
   const handleOpenPaymentModal = () => {
     if (!user) return;
@@ -189,7 +207,13 @@ const RideScreen = ({ route, navigation }) => {
 
   const handleCopyPixKey = () => {
     const key = driverInfo?.pixKey || "admin@ufop.edu.br";
-    showToast("success", `Chave Pix (${driverInfo?.pixType || "CPF"}) copiada com sucesso!`);
+    Clipboard.setString(key);
+    showToast("success", `Chave Pix (${driverInfo?.pixType || "Chave"}) copiada!`);
+  };
+
+  const handleCopyPixCopiaECola = () => {
+    Clipboard.setString(dynamicPixPayload);
+    showToast("success", `Pix Copia e Cola (R$ ${grossPrice.toFixed(2)}) copiado! Cole no seu banco.`);
   };
 
   const handleWhatsApp = () => {
@@ -202,10 +226,58 @@ const RideScreen = ({ route, navigation }) => {
     }
   };
 
+  const handleQuickMessage = (msgText) => {
+    const targetPhone = isDriver ? (driverInfo?.phone || user?.phone) : driverInfo?.phone;
+    if (!targetPhone) {
+      showToast("warning", "Número de telefone indisponível.");
+      return;
+    }
+    const message = `[Caronas ICEA - ${user?.name}]: ${msgText} (${ride.from} ➔ ${ride.to})`;
+    openDirectWhatsApp({ phone: targetPhone, message });
+  };
+
+  const handleSOS = () => {
+    const emergencyPhone = user?.emergencyContactPhone;
+    const emergencyName = user?.emergencyContactName || "Contato de Emergência";
+
+    if (emergencyPhone) {
+      Alert.alert(
+        "Segurança & Emergência SOS",
+        `Deseja disparar alerta direto para seu contato (${emergencyName}) ou compartilhar com outro app?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: `WhatsApp SOS (${emergencyName})`,
+            onPress: () => {
+              const dateStr = formatDate(departureDate);
+              const timeStr = formatTime(departureDate);
+              const sosMsg = `🚨 *ALERTA DE EMERGÊNCIA - Caronas ICEA UFOP*\n` +
+                `Estou em deslocamento universitário.\n` +
+                `🚗 Motorista: ${ride.driverName || "N/I"}\n` +
+                `🚙 Veículo: ${ride.vehicle || "N/I"} (Placa: ${ride.licensePlate || "N/I"})\n` +
+                `📍 Trajeto: ${ride.from} ➔ ${ride.to}\n` +
+                `⏰ Horário: ${dateStr} às ${timeStr}\n\n` +
+                `Acompanhe minha rota e fique atento(a)!`;
+              openDirectWhatsApp({ phone: emergencyPhone, message: sosMsg });
+            }
+          },
+          {
+            text: "Compartilhar Geral",
+            onPress: () => shareRideInfo(ride)
+          }
+        ]
+      );
+    } else {
+      shareRideInfo(ride);
+    }
+  };
+
   const handleGoogleMaps = () => {
     openGoogleMapsRoute({
       origin: ride.from,
       destination: ride.to,
+      fromAddress: ride.fromAddress,
+      toAddress: ride.toAddress,
       fromLat: ride.fromLat,
       fromLng: ride.fromLng,
       toLat: ride.toLat,
@@ -216,15 +288,10 @@ const RideScreen = ({ route, navigation }) => {
   const handleWaze = () => {
     openWazeRoute({
       destination: ride.to,
+      toAddress: ride.toAddress,
       toLat: ride.toLat,
       toLng: ride.toLng,
     });
-  };
-
-  const handleShare = () => {
-    if (ride) {
-      shareRideInfo(ride);
-    }
   };
 
   if (loading) {
@@ -247,19 +314,38 @@ const RideScreen = ({ route, navigation }) => {
       />
 
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Header Header */}
+        {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.routeHeaderRow}>
             <View style={styles.flex1}>
               <Text style={styles.fromTo}>
                 {ride.from} ➔ {ride.to}
               </Text>
-              <Text style={styles.headerSubtitle}>Carona Universitária UFOP</Text>
+              <Text style={styles.headerSubtitle}>Carona Universitária ICEA UFOP</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
               <Text style={styles.price}>R$ {grossPrice.toFixed(2)}</Text>
               <Text style={styles.commissionCaption}>(R$ {driverNet.toFixed(2)} p/ motorista)</Text>
             </View>
+          </View>
+
+          {/* Badges Row: Elas por Elas & Recurring */}
+          <View style={styles.badgesHeaderRow}>
+            {ride.isWomenOnly ? (
+              <View style={styles.womenOnlyBadge}>
+                <Ionicons name="sparkles" size={13} color="#8E24AA" />
+                <Text style={styles.womenOnlyBadgeText}>🌸 Elas por Elas (Exclusiva para Mulheres)</Text>
+              </View>
+            ) : null}
+
+            {ride.isRecurring ? (
+              <View style={styles.recurringBadge}>
+                <Ionicons name="repeat" size={13} color={COLORS.primary} />
+                <Text style={styles.recurringBadgeText}>
+                  Recorrente: {Array.isArray(ride.recurringDays) ? ride.recurringDays.join(', ') : 'Semanal'}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -269,6 +355,12 @@ const RideScreen = ({ route, navigation }) => {
             origin={ride.from}
             destination={ride.to}
             driverName={ride.driverName}
+            fromLat={ride.fromLat}
+            fromLng={ride.fromLng}
+            toLat={ride.toLat}
+            toLng={ride.toLng}
+            fromAddress={ride.fromAddress}
+            toAddress={ride.toAddress}
           />
         </View>
 
@@ -286,26 +378,45 @@ const RideScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        {/* PIX KEY PAYMENT CARD FOR RESERVED PASSENGER */}
+        {/* DYNAMIC PIX COPIA E COLA CARD FOR PASSENGER */}
         {isPassenger && (
           <View style={styles.pixPaymentCard}>
             <View style={styles.pixCardHeader}>
-              <Ionicons name="qr-code-outline" size={20} color={COLORS.success} style={{ marginRight: 6 }} />
-              <Text style={styles.pixCardTitle}>Pagamento via Pix</Text>
+              <Ionicons name="qr-code-outline" size={22} color={COLORS.success} style={{ marginRight: 6 }} />
+              <View>
+                <Text style={styles.pixCardTitle}>Pix Copia e Cola Oficial</Text>
+                <Text style={styles.pixCardSubtitle}>Padrão Banco Central c/ valor exato</Text>
+              </View>
             </View>
+
             <Text style={styles.pixCardDesc}>
-              Faça a transferência Pix no valor de <Text style={{ fontWeight: "700" }}>R$ {grossPrice.toFixed(2)}</Text> para a chave do motorista:
+              Efetue o pagamento de <Text style={{ fontWeight: "700" }}>R$ {grossPrice.toFixed(2)}</Text> diretamente pelo seu aplicativo do banco:
             </Text>
-            <View style={styles.pixBox}>
-              <Text style={styles.pixKeyText}>
-                {driverInfo?.pixKey ? `${driverInfo.pixType || "CPF"}: ${driverInfo.pixKey}` : "Chave Pix indisponível"}
+
+            {/* Dynamic Copia e Cola Button */}
+            <TouchableOpacity 
+              style={styles.pixCopiaEColaBtn} 
+              onPress={handleCopyPixCopiaECola}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="copy" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.pixCopiaEColaText}>
+                Copiar Pix Copia e Cola (R$ {grossPrice.toFixed(2)})
               </Text>
-              {driverInfo?.pixKey ? (
-                <TouchableOpacity style={styles.copyPixBtn} onPress={handleCopyPixKey}>
-                  <Ionicons name="copy-outline" size={16} color={COLORS.surface} />
-                  <Text style={styles.copyPixBtnText}>Copiar</Text>
-                </TouchableOpacity>
-              ) : null}
+            </TouchableOpacity>
+
+            {/* Raw Pix Key Fallback */}
+            <View style={styles.pixBox}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pixKeyLabel}>Chave Pix do Motorista ({driverInfo?.pixType || "Chave"}):</Text>
+                <Text style={styles.pixKeyText} numberOfLines={1}>
+                  {driverInfo?.pixKey || "admin@ufop.edu.br"}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.copyPixKeyBtn} onPress={handleCopyPixKey}>
+                <Ionicons name="copy-outline" size={15} color={COLORS.primary} />
+                <Text style={styles.copyPixKeyBtnText}>Chave</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -352,6 +463,40 @@ const RideScreen = ({ route, navigation }) => {
               </Text>
             </View>
           ) : null}
+
+          {/* Preferences Badges */}
+          {Array.isArray(ride.preferences) && ride.preferences.length > 0 && (
+            <View style={styles.prefSection}>
+              <Text style={styles.prefTitle}>Preferências da Carona:</Text>
+              <View style={styles.prefChipsContainer}>
+                {ride.preferences.includes('ac') && (
+                  <View style={styles.prefChip}>
+                    <Text style={styles.prefChipText}>❄️ Ar-condicionado</Text>
+                  </View>
+                )}
+                {ride.preferences.includes('luggage') && (
+                  <View style={styles.prefChip}>
+                    <Text style={styles.prefChipText}>🧳 Bagagem grande</Text>
+                  </View>
+                )}
+                {ride.preferences.includes('music') && (
+                  <View style={styles.prefChip}>
+                    <Text style={styles.prefChipText}>🎵 Com música</Text>
+                  </View>
+                )}
+                {ride.preferences.includes('silent') && (
+                  <View style={styles.prefChip}>
+                    <Text style={styles.prefChipText}>🔇 Silêncio</Text>
+                  </View>
+                )}
+                {ride.preferences.includes('nonsmoking') && (
+                  <View style={styles.prefChip}>
+                    <Text style={styles.prefChipText}>🚭 Não fumante</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
         </View>
 
         {/* DRIVER PROFILE SECTION */}
@@ -370,6 +515,9 @@ const RideScreen = ({ route, navigation }) => {
             )}
             <View style={styles.userDetails}>
               <Text style={styles.userName}>{ride.driverName}</Text>
+              <Text style={styles.driverCourseText}>
+                {driverInfo?.course ? `🎓 ${driverInfo.course}` : 'Aluno ICEA UFOP'}
+              </Text>
               <View style={styles.ratingRow}>
                 <Ionicons name="star" size={15} color="#F59E0B" />
                 <Text style={styles.userRating}>
@@ -379,6 +527,45 @@ const RideScreen = ({ route, navigation }) => {
             </View>
           </View>
         </View>
+
+        {/* QUICK WHATSAPP PRE-TRIP MESSAGES */}
+        {(isPassenger || isDriver) && (
+          <View style={styles.section}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Ionicons name="chatbubbles-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.sectionTitleWithoutMargin}>Avisos Rápidos de Partida</Text>
+            </View>
+            <Text style={styles.quickMsgSubtitle}>
+              Toque para avisar com 1 clique pelo WhatsApp:
+            </Text>
+            <View style={styles.quickChipsGrid}>
+              <TouchableOpacity 
+                style={styles.quickMsgChip} 
+                onPress={() => handleQuickMessage("Cheguei no ponto de encontro! 📍")}
+              >
+                <Text style={styles.quickMsgText}>📍 Cheguei no ponto</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.quickMsgChip} 
+                onPress={() => handleQuickMessage("Vou atrasar cerca de 3 minutinhos! ⏳")}
+              >
+                <Text style={styles.quickMsgText}>⏳ Atraso de 3 min</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.quickMsgChip} 
+                onPress={() => handleQuickMessage("Estou saindo agora a caminho! 🚗")}
+              >
+                <Text style={styles.quickMsgText}>🚗 Saindo agora</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.quickMsgChip} 
+                onPress={() => handleQuickMessage("Estou aguardando na portaria do ICEA! 🚪")}
+              >
+                <Text style={styles.quickMsgText}>🚪 Na portaria ICEA</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* VEHICLE PHOTO */}
         {!isDriver && (ride.carPhotoUri || driverInfo?.carPhotoUri) && (
@@ -423,9 +610,9 @@ const RideScreen = ({ route, navigation }) => {
               <Text style={styles.whatsAppBtnText}>Falar no WhatsApp</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sosBtn} onPress={handleShare} activeOpacity={0.85}>
-              <Ionicons name="share-social-outline" size={20} color={COLORS.textPrimary} style={{ marginRight: 6 }} />
-              <Text style={styles.sosBtnText}>SOS / Enviar</Text>
+            <TouchableOpacity style={styles.sosBtn} onPress={handleSOS} activeOpacity={0.85}>
+              <Ionicons name="shield-checkmark" size={19} color={COLORS.error} style={{ marginRight: 6 }} />
+              <Text style={styles.sosBtnText}>SOS Emergência</Text>
             </TouchableOpacity>
           </View>
 
@@ -656,6 +843,44 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: COLORS.success,
   },
+  badgesHeaderRow: {
+    marginTop: SPACING.sm,
+    gap: 6,
+  },
+  womenOnlyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3E5F5",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: "#E1BEE7",
+    alignSelf: "flex-start",
+  },
+  womenOnlyBadgeText: {
+    color: "#7B1FA2",
+    fontWeight: "700",
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  recurringBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E1F5FE",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: "#B3E5FC",
+    alignSelf: "flex-start",
+  },
+  recurringBadgeText: {
+    color: COLORS.primaryDark,
+    fontWeight: "600",
+    fontSize: 12,
+    marginLeft: 4,
+  },
   mapSection: {
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.md,
@@ -714,12 +939,32 @@ const styles = StyleSheet.create({
   pixCardTitle: {
     ...TYPOGRAPHY.bodyBold,
     color: COLORS.success,
+    fontSize: 15,
+  },
+  pixCardSubtitle: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
   },
   pixCardDesc: {
     ...TYPOGRAPHY.caption,
     fontSize: 12,
     color: COLORS.textPrimary,
-    marginBottom: SPACING.xs,
+    marginVertical: SPACING.xs,
+  },
+  pixCopiaEColaBtn: {
+    backgroundColor: "#2E7D32",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: RADIUS.md,
+    marginVertical: SPACING.xs,
+    ...SHADOWS.small,
+  },
+  pixCopiaEColaText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 13.5,
   },
   pixBox: {
     flexDirection: "row",
@@ -730,26 +975,33 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
+    marginTop: 6,
+  },
+  pixKeyLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   pixKeyText: {
     ...TYPOGRAPHY.bodyBold,
     fontSize: 13,
     color: COLORS.textPrimary,
-    flex: 1,
   },
-  copyPixBtn: {
+  copyPixKeyBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: RADIUS.sm,
+    marginLeft: 8,
   },
-  copyPixBtnText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.surface,
+  copyPixKeyBtnText: {
+    fontSize: 11,
+    color: COLORS.primary,
     fontWeight: "700",
-    marginLeft: 4,
+    marginLeft: 3,
   },
   section: {
     backgroundColor: COLORS.surface,
@@ -766,6 +1018,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: SPACING.md,
     color: COLORS.textPrimary,
+  },
+  sectionTitleWithoutMargin: {
+    ...TYPOGRAPHY.h3,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
+  prefSection: {
+    marginTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    paddingTop: SPACING.sm,
+  },
+  prefTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+    marginBottom: 6,
+  },
+  prefChipsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  prefChip: {
+    backgroundColor: COLORS.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  prefChipText: {
+    fontSize: 11,
+    color: COLORS.textPrimary,
+    fontWeight: "600",
   },
   detailRow: {
     flexDirection: "row",
@@ -804,6 +1091,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textPrimary,
   },
+  driverCourseText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -815,6 +1107,30 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: COLORS.textSecondary,
     marginLeft: 4,
+  },
+  quickMsgSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginBottom: SPACING.sm,
+  },
+  quickChipsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  quickMsgChip: {
+    backgroundColor: COLORS.surfaceAlt,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: RADIUS.md,
+  },
+  quickMsgText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
   },
   notes: {
     ...TYPOGRAPHY.body,
@@ -850,16 +1166,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: COLORS.surfaceAlt,
+    backgroundColor: "#FFEBEE",
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: "#FFCDD2",
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.lg,
     ...SHADOWS.small,
   },
   sosBtnText: {
     ...TYPOGRAPHY.bodyBold,
-    color: COLORS.textPrimary,
+    color: COLORS.error,
     fontSize: 13,
   },
   navRow: {

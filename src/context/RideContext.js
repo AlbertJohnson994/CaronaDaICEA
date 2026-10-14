@@ -5,7 +5,11 @@ import {
   createRideInDb, 
   cancelRideInDb,
   startRideWithPinInDb,
-  notifyRidesChanged
+  notifyRidesChanged,
+  subscribeToRideRequests,
+  createRideRequestInDb,
+  cancelRideRequestInDb,
+  notifyRideRequestsChanged,
 } from '../services/sqliteService';
 import { AuthContext } from './AuthContext';
 
@@ -14,6 +18,7 @@ export const RideContext = createContext();
 export const RideProvider = ({ children }) => {
   const [rides, setRides] = useState([]);
   const [allRidesList, setAllRidesList] = useState([]);
+  const [rideRequests, setRideRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useContext(AuthContext);
 
@@ -21,6 +26,7 @@ export const RideProvider = ({ children }) => {
     if (!user) {
       setRides([]);
       setAllRidesList([]);
+      setRideRequests([]);
       setLoading(false);
       return;
     }
@@ -28,14 +34,10 @@ export const RideProvider = ({ children }) => {
     setLoading(true);
     
     // Subscribe reactively to all SQLite ride changes
-    const unsubscribe = subscribeToRides((allRides) => {
+    const unsubRides = subscribeToRides((allRides) => {
       setAllRidesList(allRides);
       const now = new Date();
       
-      // Filter active rides for general feed:
-      // - departureTime >= now
-      // - not cancelled & not completed
-      // - ordered by departureTime asc
       const activeRides = allRides
         .filter(ride => {
           const departure = ride.departureTime.toDate();
@@ -47,12 +49,21 @@ export const RideProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return unsubscribe;
+    // Subscribe reactively to Ride Requests (Mural)
+    const unsubRequests = subscribeToRideRequests((requests) => {
+      setRideRequests(requests);
+    });
+
+    return () => {
+      unsubRides();
+      unsubRequests();
+    };
   }, [user]);
 
   const refreshRides = async () => {
     setLoading(true);
     await notifyRidesChanged();
+    await notifyRideRequestsChanged();
   };
 
   const createRide = async (rideData) => {
@@ -71,6 +82,26 @@ export const RideProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error creating ride in context:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const createRideRequest = async (requestData) => {
+    try {
+      const result = await createRideRequestInDb(requestData, user);
+      return result;
+    } catch (error) {
+      console.error('Error creating ride request in context:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const cancelRideRequest = async (requestId) => {
+    try {
+      const result = await cancelRideRequestInDb(requestId);
+      return result;
+    } catch (error) {
+      console.error('Error cancelling ride request in context:', error);
       return { success: false, error: error.message };
     }
   };
@@ -103,9 +134,12 @@ export const RideProvider = ({ children }) => {
     <RideContext.Provider value={{
       rides,
       allRidesList,
+      rideRequests,
       loading,
       refreshRides,
       createRide,
+      createRideRequest,
+      cancelRideRequest,
       startRideWithPin,
       cancelRide
     }}>

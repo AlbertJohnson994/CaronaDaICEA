@@ -1,16 +1,55 @@
 // src/services/sqliteService.js
-import * as SQLite from "expo-sqlite";
+import { db } from "./sqliteDb";
 import { hashPassword, verifyPassword, generateRidePin } from "../utils/security";
 import { getFullAddressForLocation, getLocationCoordinates } from "../constants/locations";
-import { calculateHaversineDistance } from "./geocodingService";
+import { calculateHaversineDistance, searchLocationAutocomplete } from "./geocodingService";
+import { executeWebSql } from "./webSqliteStorage";
 
-// Open SQLite database
-const db = SQLite.openDatabase("ice_carpool.db");
-
-// Promise wrapper for SQLite execution
-export const executeSql = (sql, params = [], options = {}) => {
+// Promise wrapper for SQLite execution (compatible with SDK 48, 50, 51, 52, 57 & Web)
+export const executeSql = async (sql, params = [], options = {}) => {
   const { silent = false } = options;
+  if (!db) {
+    return executeWebSql(sql, params);
+  }
+
+  // Expo SDK 50+ / 57 Synchronous & Asynchronous API
+  if (typeof db.getAllSync === "function" || typeof db.runSync === "function" || typeof db.getAllAsync === "function") {
+    try {
+      const trimmedSql = sql.trim().toUpperCase();
+      if (trimmedSql.startsWith("SELECT") || trimmedSql.startsWith("PRAGMA")) {
+        const rows = db.getAllSync ? db.getAllSync(sql, params) : await db.getAllAsync(sql, params);
+        const arrayResult = Array.isArray(rows) ? rows : [];
+        return {
+          rows: {
+            _array: arrayResult,
+            length: arrayResult.length,
+            item: (idx) => arrayResult[idx] || null,
+          },
+          insertId: null,
+          rowsAffected: 0,
+        };
+      } else {
+        const res = db.runSync ? db.runSync(sql, params) : await db.runAsync(sql, params);
+        return {
+          rows: { _array: [], length: 0, item: () => null },
+          insertId: res?.lastInsertRowId ?? null,
+          rowsAffected: res?.changes ?? 0,
+        };
+      }
+    } catch (error) {
+      if (!silent) {
+        console.error(`SQL Error executing: ${sql}`, error);
+      }
+      throw error;
+    }
+  }
+
+  // Legacy WebSQL API (Expo SDK 48 & earlier)
   return new Promise((resolve, reject) => {
+    if (typeof db.transaction !== "function") {
+      reject(new Error("Database transaction unavailable"));
+      return;
+    }
     db.transaction((tx) => {
       tx.executeSql(
         sql,
@@ -23,7 +62,7 @@ export const executeSql = (sql, params = [], options = {}) => {
             console.error(`SQL Error executing: ${sql}`, error);
           }
           reject(error);
-          return false; // do not rollback transaction automatically
+          return false;
         },
       );
     });
@@ -100,6 +139,10 @@ export const mapRideFromDb = (row) => {
     ratings: JSON.parse(row.ratings || "[]"),
     startPin: row.startPin || "1234",
     status: row.status || (row.completed ? "COMPLETED" : row.cancelled ? "CANCELLED" : "SCHEDULED"),
+    isWomenOnly: row.isWomenOnly === 1,
+    preferences: JSON.parse(row.preferences || "[]"),
+    isRecurring: row.isRecurring === 1,
+    recurringDays: JSON.parse(row.recurringDays || "[]"),
   };
 };
 
@@ -124,6 +167,11 @@ export const mapUserFromDb = (row) => ({
   walletBalance: row.walletBalance || 0.0,
   pixKey: row.pixKey || "",
   pixType: row.pixType || "CPF",
+  course: row.course || "Aluno UFOP",
+  studentId: row.studentId || "",
+  gender: row.gender || "",
+  emergencyContactName: row.emergencyContactName || "",
+  emergencyContactPhone: row.emergencyContactPhone || "",
 });
 
 // Database Initialization and Seeding
@@ -161,6 +209,11 @@ export const initDatabase = async () => {
     try { await executeSql(`ALTER TABLE users ADD COLUMN walletBalance REAL;`, [], { silent: true }); } catch (e) {}
     try { await executeSql(`ALTER TABLE users ADD COLUMN pixKey TEXT;`, [], { silent: true }); } catch (e) {}
     try { await executeSql(`ALTER TABLE users ADD COLUMN pixType TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE users ADD COLUMN course TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE users ADD COLUMN studentId TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE users ADD COLUMN gender TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE users ADD COLUMN emergencyContactName TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE users ADD COLUMN emergencyContactPhone TEXT;`, [], { silent: true }); } catch (e) {}
 
     // 2. Create Rides Table
     await executeSql(`
@@ -203,8 +256,12 @@ export const initDatabase = async () => {
     try { await executeSql(`ALTER TABLE rides ADD COLUMN toLng REAL;`, [], { silent: true }); } catch (e) {}
     try { await executeSql(`ALTER TABLE rides ADD COLUMN distanceKm REAL;`, [], { silent: true }); } catch (e) {}
     try { await executeSql(`ALTER TABLE rides ADD COLUMN estimatedMinutes INTEGER;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN isWomenOnly INTEGER;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN preferences TEXT;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN isRecurring INTEGER;`, [], { silent: true }); } catch (e) {}
+    try { await executeSql(`ALTER TABLE rides ADD COLUMN recurringDays TEXT;`, [], { silent: true }); } catch (e) {}
 
-    // 3. Create Transactions Table (10% Admin Commission System)
+    // 3. Create Transactions Table (25% Admin Commission System)
     await executeSql(`
       CREATE TABLE IF NOT EXISTS transactions (
         id TEXT PRIMARY KEY,
@@ -237,6 +294,39 @@ export const initDatabase = async () => {
       );
     `);
 
+    // 5. Create Ride Requests Table (Mural Preciso de Carona)
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS ride_requests (
+        id TEXT PRIMARY KEY,
+        requesterId TEXT,
+        requesterName TEXT,
+        requesterPhone TEXT,
+        requesterCourse TEXT,
+        from_place TEXT,
+        to_place TEXT,
+        desiredTime TEXT,
+        maxPrice REAL,
+        notes TEXT,
+        createdAt TEXT,
+        status TEXT
+      );
+    `);
+
+    // 6. Create Withdrawals Table (Saques de Motoristas via Pix)
+    await executeSql(`
+      CREATE TABLE IF NOT EXISTS withdrawals (
+        id TEXT PRIMARY KEY,
+        driverId TEXT,
+        driverName TEXT,
+        pixKey TEXT,
+        pixType TEXT,
+        amount REAL,
+        status TEXT,
+        requestedAt TEXT,
+        processedAt TEXT
+      );
+    `);
+
     // Seed Initial Users
     const usersCountRes = await executeSql("SELECT COUNT(*) as count FROM users;");
     if (usersCountRes.rows._array[0].count === 0) {
@@ -247,8 +337,8 @@ export const initDatabase = async () => {
       // Administrator
       await executeSql(
         `
-        INSERT INTO users (uid, email, password, name, phone, userType, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType)
-        VALUES ('admin_uid', 'admin@ufop.edu.br', ?, 'Administrador UFOP', '31999999999', 'both', ?, 5.0, 0, 1, 1, '[]', '[]', 0.0, 'admin@ufop.edu.br', 'Email');
+        INSERT INTO users (uid, email, password, name, phone, userType, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType, course, studentId, gender, emergencyContactName, emergencyContactPhone)
+        VALUES ('admin_uid', 'admin@ufop.edu.br', ?, 'Administrador UFOP', '31999999999', 'both', ?, 5.0, 0, 1, 1, '[]', '[]', 0.0, 'admin@ufop.edu.br', 'Email', 'Coordenação ICEA', 'ADM001', 'Prefiro não informar', 'Portaria UFOP', '3138559300');
       `,
         [defaultPasswordHash, new Date().toISOString()],
       );
@@ -256,8 +346,8 @@ export const initDatabase = async () => {
       // Driver
       await executeSql(
         `
-        INSERT INTO users (uid, email, password, name, phone, userType, vehicle, licensePlate, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType)
-        VALUES ('driver_uid', 'driver@ufop.edu.br', ?, 'Gabriel Motorista', '31988888888', 'driver', 'Fiat Uno Vermelho', 'ABC1D23', ?, 4.8, 5, 0, 1, '[]', '[]', 45.0, '123.456.789-00', 'CPF');
+        INSERT INTO users (uid, email, password, name, phone, userType, vehicle, licensePlate, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType, course, studentId, gender, emergencyContactName, emergencyContactPhone)
+        VALUES ('driver_uid', 'driver@ufop.edu.br', ?, 'Gabriel Motorista', '31988888888', 'driver', 'Fiat Uno Vermelho', 'ABC1D23', ?, 4.8, 5, 0, 1, '[]', '[]', 45.0, '123.456.789-00', 'CPF', 'Engenharia de Produção', '21.1.8042', 'Masculino', 'Irmão (Lucas)', '31988776655');
       `,
         [defaultPasswordHash, new Date().toISOString()],
       );
@@ -265,8 +355,8 @@ export const initDatabase = async () => {
       // Passenger
       await executeSql(
         `
-        INSERT INTO users (uid, email, password, name, phone, userType, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType)
-        VALUES ('passenger_uid', 'passenger@ufop.edu.br', ?, 'Mariana Passageira', '31977777777', 'passenger', ?, 4.9, 3, 0, 1, '[]', '[]', 100.0, 'mariana@aluno.ufop.br', 'Email');
+        INSERT INTO users (uid, email, password, name, phone, userType, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType, course, studentId, gender, emergencyContactName, emergencyContactPhone)
+        VALUES ('passenger_uid', 'passenger@ufop.edu.br', ?, 'Mariana Passageira', '31977777777', 'passenger', ?, 4.9, 3, 0, 1, '[]', '[]', 100.0, 'mariana@aluno.ufop.br', 'Email', 'Sistemas de Informação', '22.2.8105', 'Feminino', 'Mãe (Cláudia)', '31987654321');
       `,
         [defaultPasswordHash, new Date().toISOString()],
       );
@@ -282,16 +372,16 @@ export const initDatabase = async () => {
 
       await executeSql(
         `
-        INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status)
-        VALUES ('ride_seed_1', 'Campus ICEA (UFOP)', 'Centro João Monlevade', 5.00, 4, 4, ?, 'Saída pontual da portaria principal.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '1234', 'SCHEDULED');
+        INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status, isWomenOnly, preferences, isRecurring, recurringDays)
+        VALUES ('ride_seed_1', 'Campus ICEA (UFOP)', 'Centro João Monlevade', 5.00, 4, 4, ?, 'Saída pontual da portaria principal.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '1234', 'SCHEDULED', 0, '["Ar-condicionado", "Música liberada"]', 0, '[]');
       `,
         [tomorrow.toISOString(), new Date().toISOString()],
       );
 
       await executeSql(
         `
-        INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status)
-        VALUES ('ride_seed_2', 'Terminal Rodoviário', 'Campus ICEA (UFOP)', 6.50, 3, 3, ?, 'Plataforma 2 da Rodoviária.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '5678', 'SCHEDULED');
+        INSERT INTO rides (id, from_place, to_place, price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status, isWomenOnly, preferences, isRecurring, recurringDays)
+        VALUES ('ride_seed_2', 'Terminal Rodoviário', 'Campus ICEA (UFOP)', 6.50, 3, 3, ?, 'Plataforma 2 da Rodoviária.', 'Fiat Uno Vermelho', 'ABC1D23', 'driver_uid', 'Gabriel Motorista', 4.8, ?, 0, 0, '[]', '[]', '5678', 'SCHEDULED', 1, '["Ar-condicionado", "Porta-malas grande"]', 1, '["SEG", "QUA", "SEX"]');
       `,
         [dayAfterTomorrow.toISOString(), new Date().toISOString()],
       );
@@ -303,6 +393,15 @@ export const initDatabase = async () => {
         VALUES ('tx_seed_1', 'ride_seed_demo', 'passenger_uid', 'Mariana Passageira', 'driver_uid', 'Gabriel Motorista', 10.00, 2.50, 7.50, 'PIX', 'PAID', ?);
       `,
         [new Date().toISOString()],
+      );
+
+      // Seed mock ride request (Mural Preciso de Carona)
+      await executeSql(
+        `
+        INSERT INTO ride_requests (id, requesterId, requesterName, requesterPhone, requesterCourse, from_place, to_place, desiredTime, maxPrice, notes, createdAt, status)
+        VALUES ('req_seed_1', 'passenger_uid', 'Mariana Passageira', '31977777777', 'Sistemas de Informação', 'Carneirinhos', 'Campus ICEA (UFOP)', ?, 6.00, 'Tenho prova de Algoritmos às 13h30.', ?, 'ACTIVE');
+      `,
+        [tomorrow.toISOString(), new Date().toISOString()],
       );
 
       console.log("Database initialized and seeded successfully!");
@@ -399,9 +498,10 @@ export const loginUserInDb = async (email, password) => {
 
 export const getUserProfileInDb = async (uid) => {
   try {
-    const res = await executeSql("SELECT * FROM users WHERE uid = ?;", [uid]);
-    if (res.rows.length > 0) {
-      return mapUserFromDb(res.rows._array[0]);
+    const res = await executeSql("SELECT * FROM users WHERE uid = ? OR email = ?;", [uid, uid]);
+    const userArray = res.rows?._array || [];
+    if (userArray.length > 0) {
+      return mapUserFromDb(userArray[0]);
     }
     return null;
   } catch (error) {
@@ -412,12 +512,16 @@ export const getUserProfileInDb = async (uid) => {
 
 export const updateUserProfileInDb = async (uid, updates) => {
   try {
-    const currentRes = await executeSql("SELECT * FROM users WHERE uid = ?;", [
+    const currentRes = await executeSql("SELECT * FROM users WHERE uid = ? OR email = ?;", [
+      uid,
       uid,
     ]);
-    if (currentRes.rows.length === 0) throw new Error("Usuário não encontrado");
+    const userArray = currentRes.rows?._array || [];
+    if (userArray.length === 0) throw new Error("Usuário não encontrado");
 
-    const currentUser = currentRes.rows._array[0];
+    const currentUser = userArray[0];
+    const targetUid = currentUser.uid;
+
     const newName = updates.name !== undefined ? updates.name : currentUser.name;
     const newPhone = updates.phone !== undefined ? updates.phone : currentUser.phone;
     const newVehicle = updates.vehicle !== undefined ? updates.vehicle : currentUser.vehicle;
@@ -428,10 +532,16 @@ export const updateUserProfileInDb = async (uid, updates) => {
     const newPixKey = updates.pixKey !== undefined ? updates.pixKey : (currentUser.pixKey || "");
     const newPixType = updates.pixType !== undefined ? updates.pixType : (currentUser.pixType || "CPF");
 
+    const newCourse = updates.course !== undefined ? updates.course : (currentUser.course || "Aluno UFOP");
+    const newStudentId = updates.studentId !== undefined ? updates.studentId : (currentUser.studentId || "");
+    const newGender = updates.gender !== undefined ? updates.gender : (currentUser.gender || "");
+    const newEmergencyContactName = updates.emergencyContactName !== undefined ? updates.emergencyContactName : (currentUser.emergencyContactName || "");
+    const newEmergencyContactPhone = updates.emergencyContactPhone !== undefined ? updates.emergencyContactPhone : (currentUser.emergencyContactPhone || "");
+
     await executeSql(
       `
       UPDATE users 
-      SET name = ?, phone = ?, vehicle = ?, licensePlate = ?, userType = ?, driverPhotoUri = ?, carPhotoUri = ?, pixKey = ?, pixType = ?
+      SET name = ?, phone = ?, vehicle = ?, licensePlate = ?, userType = ?, driverPhotoUri = ?, carPhotoUri = ?, pixKey = ?, pixType = ?, course = ?, studentId = ?, gender = ?, emergencyContactName = ?, emergencyContactPhone = ?
       WHERE uid = ?;
     `,
       [
@@ -444,7 +554,12 @@ export const updateUserProfileInDb = async (uid, updates) => {
         newCarPhotoUri,
         newPixKey,
         newPixType,
-        uid,
+        newCourse,
+        newStudentId,
+        newGender,
+        newEmergencyContactName,
+        newEmergencyContactPhone,
+        targetUid,
       ],
     );
 
@@ -504,6 +619,31 @@ export const fetchRidesList = async () => {
   }
 };
 
+const resolveLocationCoords = async (address, inputLat, inputLng) => {
+  const validNum = (val) => val !== null && val !== undefined && !isNaN(Number(val));
+  if (validNum(inputLat) && validNum(inputLng)) {
+    return { lat: Number(inputLat), lng: Number(inputLng) };
+  }
+  try {
+    const presetCoords = getLocationCoordinates(address);
+    const isIceaFallback = presetCoords.lat === -19.81542 && presetCoords.lng === -43.17391;
+    const isActuallyIcea = (address || "").toLowerCase().includes("icea") || (address || "").toLowerCase().includes("campus");
+
+    if (!isIceaFallback || isActuallyIcea) {
+      return presetCoords;
+    }
+
+    const results = await searchLocationAutocomplete(address);
+    if (results && results.length > 0 && validNum(results[0].lat) && validNum(results[0].lng)) {
+      return { lat: Number(results[0].lat), lng: Number(results[0].lng) };
+    }
+  } catch (e) {
+    console.warn("Could not geocode custom address:", address, e);
+  }
+
+  return getLocationCoordinates(address);
+};
+
 export const createRideInDb = async (
   rideData,
   driverId,
@@ -519,12 +659,8 @@ export const createRideInDb = async (
   const now = new Date().toISOString();
   const startPin = generateRidePin();
 
-  const fromCoords = rideData.fromLat && rideData.fromLng
-    ? { lat: rideData.fromLat, lng: rideData.fromLng }
-    : getLocationCoordinates(rideData.from);
-  const toCoords = rideData.toLat && rideData.toLng
-    ? { lat: rideData.toLat, lng: rideData.toLng }
-    : getLocationCoordinates(rideData.to);
+  const fromCoords = await resolveLocationCoords(rideData.from, rideData.fromLat, rideData.fromLng);
+  const toCoords = await resolveLocationCoords(rideData.to, rideData.toLat, rideData.toLng);
 
   const geoCalc = calculateHaversineDistance(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng);
   const distanceKm = rideData.distanceKm || geoCalc?.distanceKm || 5.2;
@@ -532,14 +668,20 @@ export const createRideInDb = async (
   const fromAddress = rideData.fromAddress || getFullAddressForLocation(rideData.from);
   const toAddress = rideData.toAddress || getFullAddressForLocation(rideData.to);
 
+  const isWomenOnly = rideData.isWomenOnly ? 1 : 0;
+  const preferences = JSON.stringify(rideData.preferences || []);
+  const isRecurring = rideData.isRecurring ? 1 : 0;
+  const recurringDays = JSON.stringify(rideData.recurringDays || []);
+
   try {
     await executeSql(
       `
       INSERT INTO rides (
         id, from_place, to_place, fromAddress, fromLat, fromLng, toAddress, toLat, toLng, distanceKm, estimatedMinutes,
-        price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, carPhotoUri, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status
+        price, totalSeats, availableSeats, departureTime, notes, vehicle, licensePlate, carPhotoUri, driverId, driverName, driverRating, createdAt, cancelled, completed, passengers, ratings, startPin, status,
+        isWomenOnly, preferences, isRecurring, recurringDays
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, '[]', '[]', ?, 'SCHEDULED');
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, '[]', '[]', ?, 'SCHEDULED', ?, ?, ?, ?);
     `,
       [
         id,
@@ -566,6 +708,10 @@ export const createRideInDb = async (
         driverRating,
         now,
         startPin,
+        isWomenOnly,
+        preferences,
+        isRecurring,
+        recurringDays,
       ],
     );
 
@@ -626,6 +772,15 @@ export const reserveSeatInDb = async (rideId, userId, paymentMethod = 'PIX') => 
     }
     if (ride.completed === 1 || ride.status === 'COMPLETED') {
       throw new Error("Esta carona já foi finalizada.");
+    }
+
+    // Women-Only validation
+    if (ride.isWomenOnly === 1) {
+      const passengerProfileRes = await executeSql("SELECT gender FROM users WHERE uid = ?;", [userId]);
+      const passengerGender = passengerProfileRes.rows?._array[0]?.gender;
+      if (passengerGender === "Masculino") {
+        throw new Error("Esta carona foi definida como 'Elas por Elas' (exclusiva para mulheres).");
+      }
     }
 
     const passengers = JSON.parse(ride.passengers || "[]");
@@ -818,7 +973,7 @@ export const getDriverWalletStatsInDb = async (driverId) => {
       "SELECT * FROM transactions WHERE driverId = ? ORDER BY createdAt DESC;",
       [driverId],
     );
-    const transactions = res.rows._array;
+    const transactions = res.rows?._array || [];
 
     let totalGross = 0;
     let totalCommission = 0; // 10%
@@ -830,10 +985,11 @@ export const getDriverWalletStatsInDb = async (driverId) => {
       totalNet += Number(tx.driverNet || 0);
     });
 
-    const userRes = await executeSql("SELECT walletBalance, pixKey, pixType FROM users WHERE uid = ?;", [driverId]);
-    const walletBalance = userRes.rows.length > 0 ? userRes.rows._array[0].walletBalance || 0 : totalNet;
-    const pixKey = userRes.rows.length > 0 ? userRes.rows._array[0].pixKey || "" : "";
-    const pixType = userRes.rows.length > 0 ? userRes.rows._array[0].pixType || "CPF" : "CPF";
+    const userRes = await executeSql("SELECT walletBalance, pixKey, pixType FROM users WHERE uid = ? OR email = ?;", [driverId, driverId]);
+    const userList = userRes.rows?._array || [];
+    const walletBalance = userList.length > 0 ? userList[0].walletBalance || 0 : totalNet;
+    const pixKey = userList.length > 0 ? userList[0].pixKey || "" : "";
+    const pixType = userList.length > 0 ? userList[0].pixType || "CPF" : "CPF";
 
     return {
       totalGross,
@@ -853,7 +1009,7 @@ export const getDriverWalletStatsInDb = async (driverId) => {
 export const getAdminFinancialStatsInDb = async () => {
   try {
     const res = await executeSql("SELECT * FROM transactions ORDER BY createdAt DESC;");
-    const transactions = res.rows._array;
+    const transactions = res.rows?._array || [];
 
     let totalVolume = 0;
     let totalPlatformRevenue = 0; // 10% total collected
@@ -881,11 +1037,13 @@ export const getAdminFinancialStatsInDb = async () => {
 
 export const submitRatingInDb = async (ratingData, raterUid, raterName) => {
   try {
-    const userRes = await executeSql("SELECT * FROM users WHERE uid = ?;", [
+    const userRes = await executeSql("SELECT * FROM users WHERE uid = ? OR email = ?;", [
+      ratingData.ratedUserId,
       ratingData.ratedUserId,
     ]);
-    if (userRes.rows.length > 0) {
-      const userRow = userRes.rows._array[0];
+    const userList = userRes.rows?._array || [];
+    if (userList.length > 0) {
+      const userRow = userList[0];
       const currentRating = userRow.rating || 0;
       const totalRatings = userRow.totalRatings || 0;
       const ratingsArray = JSON.parse(userRow.ratings || "[]");
@@ -911,7 +1069,7 @@ export const submitRatingInDb = async (ratingData, raterUid, raterName) => {
           newRating,
           totalRatings + 1,
           JSON.stringify(ratingsArray),
-          ratingData.ratedUserId,
+          userRow.uid,
         ],
       );
     }
@@ -920,8 +1078,9 @@ export const submitRatingInDb = async (ratingData, raterUid, raterName) => {
       "SELECT ratings FROM rides WHERE id = ?;",
       [ratingData.rideId],
     );
-    if (rideRes.rows.length > 0) {
-      const rideRatings = JSON.parse(rideRes.rows._array[0].ratings || "[]");
+    const rideList = rideRes.rows?._array || [];
+    if (rideList.length > 0) {
+      const rideRatings = JSON.parse(rideList[0].ratings || "[]");
       rideRatings.push({
         rating: ratingData.rating,
         comment: ratingData.comment,
@@ -953,7 +1112,8 @@ export const submitRatingInDb = async (ratingData, raterUid, raterName) => {
 export const getUnresolvedReportsInDb = async () => {
   try {
     const res = await executeSql("SELECT * FROM reports WHERE resolved = 0;");
-    return res.rows._array.map((row) => ({
+    const reportsList = res.rows?._array || [];
+    return reportsList.map((row) => ({
       id: row.id,
       type: row.type,
       description: row.description,
@@ -971,7 +1131,8 @@ export const getUnresolvedReportsInDb = async () => {
 export const getAllUsersInDb = async () => {
   try {
     const res = await executeSql("SELECT * FROM users;");
-    return res.rows._array.map(mapUserFromDb);
+    const userList = res.rows?._array || [];
+    return userList.map(mapUserFromDb);
   } catch (error) {
     console.error("Error fetching all users in SQLite:", error);
     return [];
@@ -1029,3 +1190,156 @@ export const submitReportInDb = async (reportData, reporterId, reporterName) => 
     return { success: false, error: error.message };
   }
 };
+
+// ==========================================
+// RIDE REQUESTS (MURAL PRECISO DE CARONA)
+// ==========================================
+
+const requestListeners = new Set();
+
+export const subscribeToRideRequests = (callback) => {
+  requestListeners.add(callback);
+  fetchActiveRideRequestsInDb().then(callback);
+  return () => {
+    requestListeners.delete(callback);
+  };
+};
+
+export const notifyRideRequestsChanged = async () => {
+  const reqs = await fetchActiveRideRequestsInDb();
+  for (const listener of requestListeners) {
+    try {
+      listener(reqs);
+    } catch (e) {
+      console.error("Error notifying request listener:", e);
+    }
+  }
+};
+
+export const createRideRequestInDb = async (requestData, user) => {
+  const id = "req_" + Math.random().toString(36).substr(2, 9);
+  const now = new Date().toISOString();
+  try {
+    await executeSql(
+      `
+      INSERT INTO ride_requests (id, requesterId, requesterName, requesterPhone, requesterCourse, from_place, to_place, desiredTime, maxPrice, notes, createdAt, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');
+    `,
+      [
+        id,
+        user.uid,
+        user.name,
+        user.phone || "",
+        user.course || "Aluno UFOP",
+        requestData.from.trim(),
+        requestData.to.trim(),
+        requestData.desiredTime,
+        Number(requestData.maxPrice || 5.0),
+        requestData.notes || "",
+        now,
+      ],
+    );
+    await notifyRideRequestsChanged();
+    return { success: true, id };
+  } catch (error) {
+    console.error("Error creating ride request in SQLite:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const fetchActiveRideRequestsInDb = async () => {
+  try {
+    const res = await executeSql("SELECT * FROM ride_requests WHERE status = 'ACTIVE' ORDER BY createdAt DESC;");
+    const list = res.rows?._array || [];
+    return list.map((r) => ({
+      ...r,
+      desiredTime: { toDate: () => new Date(r.desiredTime) },
+      createdAt: { toDate: () => new Date(r.createdAt) },
+    }));
+  } catch (error) {
+    console.error("Error fetching ride requests from SQLite:", error);
+    return [];
+  }
+};
+
+export const cancelRideRequestInDb = async (requestId) => {
+  try {
+    await executeSql("UPDATE ride_requests SET status = 'CANCELLED' WHERE id = ?;", [requestId]);
+    await notifyRideRequestsChanged();
+    return { success: true };
+  } catch (error) {
+    console.error("Error cancelling ride request in SQLite:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ==========================================
+// WITHDRAWAL REQUESTS (SAQUES VIA PIX)
+// ==========================================
+
+export const createWithdrawalRequestInDb = async ({ driverId, driverName, pixKey, pixType, amount }) => {
+  const numAmount = Number(amount);
+  if (isNaN(numAmount) || numAmount <= 0) {
+    return { success: false, error: "Valor de saque inválido." };
+  }
+
+  try {
+    const userRes = await executeSql("SELECT walletBalance FROM users WHERE uid = ?;", [driverId]);
+    const userList = userRes.rows?._array || [];
+    const currentBalance = userList.length > 0 ? Number(userList[0].walletBalance || 0) : 0;
+
+    if (numAmount > currentBalance) {
+      return { success: false, error: `Saldo insuficiente para saque. Disponível: R$ ${currentBalance.toFixed(2)}` };
+    }
+
+    const id = "wdr_" + Math.random().toString(36).substr(2, 9);
+    const now = new Date().toISOString();
+
+    await executeSql("UPDATE users SET walletBalance = walletBalance - ? WHERE uid = ?;", [numAmount, driverId]);
+
+    await executeSql(
+      `
+      INSERT INTO withdrawals (id, driverId, driverName, pixKey, pixType, amount, status, requestedAt, processedAt)
+      VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?, NULL);
+    `,
+      [id, driverId, driverName, pixKey, pixType, numAmount, now],
+    );
+
+    return { success: true, id, newBalance: currentBalance - numAmount };
+  } catch (error) {
+    console.error("Error creating withdrawal request in SQLite:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const fetchPendingWithdrawalsInDb = async () => {
+  try {
+    const res = await executeSql("SELECT * FROM withdrawals WHERE status = 'PENDING' ORDER BY requestedAt DESC;");
+    return res.rows?._array || [];
+  } catch (error) {
+    console.error("Error fetching withdrawals in SQLite:", error);
+    return [];
+  }
+};
+
+export const confirmWithdrawalInDb = async (withdrawalId) => {
+  const now = new Date().toISOString();
+  try {
+    await executeSql("UPDATE withdrawals SET status = 'COMPLETED', processedAt = ? WHERE id = ?;", [now, withdrawalId]);
+    return { success: true };
+  } catch (error) {
+    console.error("Error confirming withdrawal in SQLite:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const fetchDriverWithdrawalsInDb = async (driverId) => {
+  try {
+    const res = await executeSql("SELECT * FROM withdrawals WHERE driverId = ? ORDER BY requestedAt DESC;", [driverId]);
+    return res.rows?._array || [];
+  } catch (error) {
+    console.error("Error fetching driver withdrawals in SQLite:", error);
+    return [];
+  }
+};
+

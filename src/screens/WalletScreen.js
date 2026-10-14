@@ -7,14 +7,19 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  FlatList,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { AuthContext } from "../context/AuthContext";
-import { getDriverWalletStatsInDb, updateUserProfileInDb } from "../services/sqliteService";
+import { 
+  getDriverWalletStatsInDb, 
+  updateUserProfileInDb,
+  createWithdrawalRequestInDb,
+  fetchDriverWithdrawalsInDb,
+} from "../services/sqliteService";
 import { formatDate, formatTime } from "../utils/formatters";
 import ToastNotification from "../components/ToastNotification";
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../constants/theme";
@@ -31,6 +36,7 @@ const WalletScreen = ({ navigation }) => {
     pixType: "CPF",
     transactions: [],
   });
+  const [withdrawals, setWithdrawals] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Pix Edit state
@@ -38,6 +44,11 @@ const WalletScreen = ({ navigation }) => {
   const [pixType, setPixType] = useState("CPF");
   const [editingPix, setEditingPix] = useState(false);
   const [savingPix, setSavingPix] = useState(false);
+
+  // Withdrawal Modal state
+  const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
 
   // Toast state
   const [toast, setToast] = useState({ visible: false, type: 'info', message: '' });
@@ -53,6 +64,9 @@ const WalletScreen = ({ navigation }) => {
       setWalletStats(stats);
       setPixKey(stats.pixKey || user.pixKey || "");
       setPixType(stats.pixType || user.pixType || "CPF");
+
+      const wList = await fetchDriverWithdrawalsInDb(user.uid);
+      setWithdrawals(wList);
     } catch (error) {
       console.error("Error loading wallet stats:", error);
     } finally {
@@ -86,6 +100,58 @@ const WalletScreen = ({ navigation }) => {
     }
   };
 
+  const handleOpenWithdrawModal = () => {
+    const currentBalance = Number(walletStats.walletBalance || walletStats.totalNet || 0);
+    if (currentBalance <= 0) {
+      Alert.alert("Saldo Insuficiente", "Você não possui saldo líquido disponível para saque no momento.");
+      return;
+    }
+    if (!walletStats.pixKey && !user?.pixKey) {
+      Alert.alert("Chave Pix Necessária", "Cadastre sua chave Pix antes de solicitar uma transferência.");
+      setEditingPix(true);
+      return;
+    }
+    setWithdrawAmount(currentBalance.toFixed(2));
+    setWithdrawModalVisible(true);
+  };
+
+  const handleConfirmWithdraw = async () => {
+    const amountNum = parseFloat(withdrawAmount);
+    const currentBalance = Number(walletStats.walletBalance || walletStats.totalNet || 0);
+
+    if (isNaN(amountNum) || amountNum <= 0) {
+      Alert.alert("Valor Inválido", "Informe um valor positivo para saque.");
+      return;
+    }
+
+    if (amountNum > currentBalance) {
+      Alert.alert("Saldo Insuficiente", `O valor máximo que você pode transferir é R$ ${currentBalance.toFixed(2)}.`);
+      return;
+    }
+
+    setSubmittingWithdraw(true);
+    try {
+      const res = await createWithdrawalRequestInDb({
+        driverId: user.uid,
+        driverName: user.name,
+        amount: amountNum,
+        pixKey: walletStats.pixKey || user.pixKey,
+      });
+
+      if (res.success) {
+        setWithdrawModalVisible(false);
+        showToast("success", "Solicitação de saque enviada! O administrador efetuará o Pix.");
+        loadWallet();
+      } else {
+        showToast("error", res.error || "Não foi possível solicitar o saque.");
+      }
+    } catch (e) {
+      showToast("error", "Erro ao processar saque.");
+    } finally {
+      setSubmittingWithdraw(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -93,6 +159,8 @@ const WalletScreen = ({ navigation }) => {
       </View>
     );
   }
+
+  const currentBalance = Number(walletStats.walletBalance || walletStats.totalNet || 0);
 
   return (
     <View style={styles.flex1}>
@@ -103,19 +171,29 @@ const WalletScreen = ({ navigation }) => {
         onClose={() => setToast({ ...toast, visible: false })}
       />
 
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
         {/* Header & Balance Card */}
         <View style={styles.headerCard}>
           <Text style={styles.headerTitle}>Carteira & Finanças ICEA</Text>
           <Text style={styles.headerSubtitle}>
-            Gestão transparente de recebimentos e taxa de 25% da plataforma
+            Gestão transparente de repasses e taxa de 25% da plataforma
           </Text>
 
           <View style={styles.mainBalanceContainer}>
             <Text style={styles.balanceLabel}>Saldo Líquido Disponível (75%)</Text>
             <Text style={styles.balanceAmount}>
-              R$ {Number(walletStats.walletBalance || walletStats.totalNet).toFixed(2)}
+              R$ {currentBalance.toFixed(2)}
             </Text>
+
+            <TouchableOpacity 
+              style={[styles.withdrawBtn, currentBalance <= 0 && { opacity: 0.6 }]}
+              onPress={handleOpenWithdrawModal}
+              disabled={currentBalance <= 0}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="arrow-up-circle-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.withdrawBtnText}>Solicitar Saque via Pix</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Breakdown Stats */}
@@ -200,6 +278,36 @@ const WalletScreen = ({ navigation }) => {
           )}
         </View>
 
+        {/* WITHDRAWALS HISTORY */}
+        {withdrawals.length > 0 && (
+          <View style={styles.section}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: SPACING.sm }}>
+              <Ionicons name="card-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.sectionTitle}>Solicitações de Saque</Text>
+            </View>
+
+            {withdrawals.map((w) => {
+              const isPending = w.status === 'PENDING';
+              return (
+                <View key={w.id} style={styles.withdrawalCard}>
+                  <View style={styles.withdrawalHeader}>
+                    <Text style={styles.withdrawalAmount}>R$ {Number(w.amount).toFixed(2)}</Text>
+                    <View style={[styles.statusBadge, isPending ? styles.pendingBadge : styles.confirmedBadge]}>
+                      <Text style={[styles.statusBadgeText, isPending ? styles.pendingBadgeText : styles.confirmedBadgeText]}>
+                        {isPending ? "EM ANÁLISE" : "PAGO VIA PIX"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.withdrawalKeyText}>Chave Pix: {w.pixKey}</Text>
+                  <Text style={styles.withdrawalDateText}>
+                    {formatDate(new Date(w.createdAt))} • {formatTime(new Date(w.createdAt))}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {/* TRANSACTIONS HISTORY FEED */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Histórico de Recebimentos & Comissões</Text>
@@ -238,6 +346,62 @@ const WalletScreen = ({ navigation }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* MODAL: SOLICITAR SAQUE */}
+      <Modal
+        visible={withdrawModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setWithdrawModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="wallet" size={32} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Solicitar Saque via Pix</Text>
+              <Text style={styles.modalSubtitle}>
+                O valor será enviado diretamente para a chave Pix cadastrada em sua conta.
+              </Text>
+            </View>
+
+            <View style={styles.modalInfoBox}>
+              <Text style={styles.modalInfoLabel}>Chave Pix de Destino:</Text>
+              <Text style={styles.modalInfoValue}>{walletStats.pixKey || user?.pixKey}</Text>
+            </View>
+
+            <Text style={styles.inputLabel}>Valor a Sacar (R$)</Text>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={withdrawAmount}
+              onChangeText={setWithdrawAmount}
+              placeholder="0.00"
+              placeholderTextColor={COLORS.textMuted}
+            />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setWithdrawModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, submittingWithdraw && { opacity: 0.6 }]}
+                onPress={handleConfirmWithdraw}
+                disabled={submittingWithdraw}
+              >
+                {submittingWithdraw ? (
+                  <ActivityIndicator color={COLORS.surface} size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>Confirmar Saque</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -289,6 +453,21 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: COLORS.surface,
     marginTop: 4,
+    marginBottom: SPACING.md,
+  },
+  withdrawBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: RADIUS.full,
+    ...SHADOWS.small,
+  },
+  withdrawBtnText: {
+    ...TYPOGRAPHY.bodyBold,
+    color: COLORS.primary,
+    fontSize: 13,
   },
   breakdownRow: {
     flexDirection: "row",
@@ -301,26 +480,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
   },
+  breakdownNumber: {
+    ...TYPOGRAPHY.h2,
+    fontSize: 18,
+    color: COLORS.textPrimary,
+  },
+  breakdownLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    fontSize: 11,
+  },
   breakdownDivider: {
     width: 1,
     backgroundColor: COLORS.border,
   },
-  breakdownNumber: {
-    ...TYPOGRAPHY.h2,
-    fontSize: 16,
-    color: COLORS.success,
-  },
-  breakdownLabel: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
   section: {
     backgroundColor: COLORS.surface,
     padding: SPACING.lg,
-    marginTop: SPACING.lg,
     marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -338,17 +517,16 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   editLinkText: {
-    ...TYPOGRAPHY.bodyBold,
-    fontSize: 13,
-    color: COLORS.accent,
+    ...TYPOGRAPHY.caption,
+    fontWeight: "700",
+    color: COLORS.primary,
   },
   pixForm: {
     marginTop: SPACING.xs,
   },
   label: {
     ...TYPOGRAPHY.caption,
-    fontWeight: "600",
-    color: COLORS.textPrimary,
+    color: COLORS.textSecondary,
     marginBottom: SPACING.xs,
   },
   pixTypeRow: {
@@ -356,80 +534,130 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   pixTypeChip: {
-    backgroundColor: COLORS.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
-    marginRight: 6,
+    backgroundColor: COLORS.surfaceAlt,
     borderWidth: 1,
     borderColor: COLORS.border,
+    marginRight: 6,
   },
   pixTypeChipActive: {
-    backgroundColor: COLORS.accentLight,
-    borderColor: COLORS.accent,
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   pixTypeText: {
-    ...TYPOGRAPHY.caption,
     fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
   },
   pixTypeTextActive: {
-    color: COLORS.primary,
-    fontWeight: "700",
+    color: COLORS.surface,
   },
   input: {
     backgroundColor: COLORS.surfaceAlt,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
     fontSize: 14,
     color: COLORS.textPrimary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: SPACING.md,
   },
   savePixBtn: {
     backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.md,
+    paddingVertical: 12,
     borderRadius: RADIUS.md,
     alignItems: "center",
   },
   savePixBtnText: {
     ...TYPOGRAPHY.bodyBold,
     color: COLORS.surface,
+    fontSize: 14,
   },
   pixDisplayBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.successLight,
+    backgroundColor: COLORS.surfaceAlt,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: COLORS.border,
   },
   pixTypeLabel: {
-    ...TYPOGRAPHY.caption,
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
   },
   pixKeyValue: {
     ...TYPOGRAPHY.bodyBold,
     fontSize: 14,
     color: COLORS.textPrimary,
+    marginTop: 2,
+  },
+  withdrawalCard: {
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  withdrawalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  withdrawalAmount: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  pendingBadge: {
+    backgroundColor: "#FFF3E0",
+  },
+  pendingBadgeText: {
+    color: "#E65100",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  confirmedBadge: {
+    backgroundColor: "#E8F5E9",
+  },
+  confirmedBadgeText: {
+    color: "#2E7D32",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  withdrawalKeyText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+  },
+  withdrawalDateText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   emptyTransactions: {
     alignItems: "center",
-    padding: SPACING.xl,
+    paddingVertical: SPACING.xl,
   },
   emptyText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    textAlign: "center",
     marginTop: SPACING.sm,
   },
   txCard: {
     backgroundColor: COLORS.surfaceAlt,
     borderRadius: RADIUS.md,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -437,49 +665,141 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: SPACING.xs,
   },
   txPassengerName: {
     ...TYPOGRAPHY.bodyBold,
-    fontSize: 14,
-    marginLeft: 6,
+    fontSize: 13,
     color: COLORS.textPrimary,
+    marginLeft: 6,
   },
   txMethodBadge: {
-    backgroundColor: COLORS.accentLight,
-    paddingHorizontal: 8,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: RADIUS.sm,
   },
   txMethodText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    color: COLORS.accent,
+    color: COLORS.primary,
   },
   txDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: COLORS.borderLight,
     marginVertical: SPACING.xs,
   },
   txDetailsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-end",
   },
   txDateText: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  txFeeText: {
+    fontSize: 11,
+    color: COLORS.warning,
+    marginTop: 2,
+  },
+  txNetAmount: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.success,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING.lg,
+  },
+  modalContainer: {
+    width: "100%",
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    ...SHADOWS.large,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: SPACING.md,
+  },
+  modalTitle: {
+    ...TYPOGRAPHY.h2,
+    fontSize: 20,
+    color: COLORS.primary,
+    marginTop: SPACING.xs,
+  },
+  modalSubtitle: {
     ...TYPOGRAPHY.caption,
+    textAlign: "center",
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+    lineHeight: 18,
+  },
+  modalInfoBox: {
+    backgroundColor: COLORS.surfaceAlt,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  modalInfoLabel: {
     fontSize: 11,
     color: COLORS.textMuted,
   },
-  txFeeText: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.warning,
-    fontWeight: "600",
+  modalInfoValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginTop: 2,
   },
-  txNetAmount: {
-    ...TYPOGRAPHY.h3,
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  modalInput: {
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
     fontSize: 16,
-    color: COLORS.success,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.lg,
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surfaceAlt,
+    alignItems: "center",
+    marginRight: SPACING.sm,
+  },
+  modalCancelText: {
+    ...TYPOGRAPHY.bodyBold,
+    color: COLORS.textSecondary,
+  },
+  modalConfirmBtn: {
+    flex: 1.5,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+  },
+  modalConfirmText: {
+    ...TYPOGRAPHY.bodyBold,
+    color: COLORS.surface,
   },
 });
 

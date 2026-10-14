@@ -6,12 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A3D62"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "br.edu.ufop.caronasicea"
@@ -25,7 +22,25 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    }
+      "bundler": "metro",
+      "name": "Caronas ICEA - UFOP",
+      "shortName": "Caronas ICEA",
+      "description": "Sistema de Caronas Universitárias para o Campus ICEA UFOP",
+      "themeColor": "#0A3D62",
+      "backgroundColor": "#0A3D62",
+      "display": "standalone",
+      "orientation": "portrait"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0A3D62"
+        }
+      ],
+      "expo-sqlite"
+    ]
   }
 }

@@ -116,3 +116,22 @@ graph TD
    - Reserve a **R$ 10,00** seat selecting Pix payment method.
    - Open **Carteira** as Driver to confirm **+R$ 7,50** net credit.
    - Log in as Admin to confirm **+R$ 2,50** platform revenue in **Admin -> Comissões (25%)**.
+
+---
+
+## 🚀 Part 6: Revision, Dependency Alignment & Live Web Execution
+
+### 1. Codebase Revision & Flaws Resolved
+- **Web Database Simulation & Persistence:** Implemented [webSqliteStorage.js](src/services/webSqliteStorage.js) with `localStorage` backing and SQL list/token parsing. Resolved the issue where Web previously had empty memory stub arrays that prevented logging in or creating rides.
+- **Cross-Platform Map Rendering:** Added web `iframe` fallback in [RouteMap.js](src/components/RouteMap.js) alongside native `react-native-webview`, allowing Leaflet OpenStreetMap routes to render seamlessly across all platforms.
+- **Dependency Alignment (Expo SDK 57):** Aligned all packages using `expo install --fix`: `expo@~57.0.28`, `react-native@0.86.3`, `expo-sqlite@~57.0.4`, `expo-image-picker@~57.0.20`, and `react-native-screens@~4.26.0`, fixing the Hermes V1 memory regression.
+- **Template Cleanup:** Removed obsolete leftover Vite files (`index.html`, `App.css`, `index.css`, `eslint.config.js`, `public/vite.svg`) and rewrote [README.md](README.md) with complete documentation and credentials.
+
+### 2. Live Execution & Verification
+- **Web Server:** Running locally on port `8081` (`http://localhost:8081`).
+- **End-to-End Browser Subagent Test:**
+  - Authenticated as `admin@ufop.edu.br`.
+  - Verified feed rendering of active carpools.
+  - Selected ride, viewed details and itinerary, opened Pix payment modal, and completed booking.
+  - Recorded session: `caronas_demo`.
+

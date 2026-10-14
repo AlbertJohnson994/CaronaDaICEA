@@ -110,13 +110,38 @@ export const shareRideInfo = async (ride) => {
   }
 };
 
-export const openGoogleMapsRoute = async ({ origin, destination, fromLat, fromLng, toLat, toLng }) => {
-  const originCoords = fromLat && fromLng ? { lat: fromLat, lng: fromLng } : getLocationCoordinates(origin);
-  const destCoords = toLat && toLng ? { lat: toLat, lng: toLng } : getLocationCoordinates(destination);
+const hasCoord = (lat, lng) =>
+  lat !== null && lat !== undefined && lng !== null && lng !== undefined && !isNaN(Number(lat)) && !isNaN(Number(lng));
 
-  const queryOrigin = `${originCoords.lat},${originCoords.lng}`;
-  const queryDest = `${destCoords.lat},${destCoords.lng}`;
-  const url = `https://www.google.com/maps/dir/?api=1&origin=${queryOrigin}&destination=${queryDest}&travelmode=driving`;
+export const openGoogleMapsRoute = async ({
+  origin,
+  destination,
+  fromAddress,
+  toAddress,
+  fromLat,
+  fromLng,
+  toLat,
+  toLng,
+}) => {
+  let url;
+
+  if (hasCoord(fromLat, fromLng) && hasCoord(toLat, toLng)) {
+    url = `https://www.google.com/maps/dir/?api=1&origin=${fromLat},${fromLng}&destination=${toLat},${toLng}&travelmode=driving`;
+  } else if (hasCoord(toLat, toLng)) {
+    url = `https://www.google.com/maps/dir/?api=1&destination=${toLat},${toLng}&travelmode=driving`;
+  } else {
+    const fullOrigin = fromAddress || getFullAddressForLocation(origin);
+    const fullDest = toAddress || getFullAddressForLocation(destination);
+
+    const queryOrigin = encodeURIComponent(
+      fullOrigin.includes("Monlevade") ? fullOrigin : `${fullOrigin}, João Monlevade - MG`
+    );
+    const queryDest = encodeURIComponent(
+      fullDest.includes("Monlevade") ? fullDest : `${fullDest}, João Monlevade - MG`
+    );
+
+    url = `https://www.google.com/maps/dir/?api=1&origin=${queryOrigin}&destination=${queryDest}&travelmode=driving`;
+  }
 
   try {
     const supported = await Linking.canOpenURL(url);
@@ -131,21 +156,58 @@ export const openGoogleMapsRoute = async ({ origin, destination, fromLat, fromLn
   }
 };
 
-export const openWazeRoute = async ({ destination, toLat, toLng }) => {
-  const destCoords = toLat && toLng ? { lat: toLat, lng: toLng } : getLocationCoordinates(destination);
-  const url = `https://waze.com/ul?ll=${destCoords.lat},${destCoords.lng}&navigate=yes`;
+export const openWazeRoute = async ({ destination, toAddress, toLat, toLng }) => {
+  let url;
+
+  if (hasCoord(toLat, toLng)) {
+    url = `https://waze.com/ul?ll=${toLat},${toLng}&navigate=yes`;
+  } else {
+    const fullDest = toAddress || getFullAddressForLocation(destination);
+    const queryDest = encodeURIComponent(
+      fullDest.includes("Monlevade") ? fullDest : `${fullDest}, João Monlevade - MG`
+    );
+    url = `https://waze.com/ul?q=${queryDest}&navigate=yes`;
+  }
 
   try {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
     } else {
-      // Fallback web url
-      const fullDest = getFullAddressForLocation(destination);
-      await Linking.openURL(`https://www.waze.com/live-map/directions?to=ll.${encodeURIComponent(fullDest)}`);
+      if (hasCoord(toLat, toLng)) {
+        await Linking.openURL(`https://www.waze.com/live-map/directions?to=ll.${toLat}%2C${toLng}`);
+      } else {
+        const fullDest = toAddress || getFullAddressForLocation(destination);
+        const queryDest = encodeURIComponent(
+          fullDest.includes("Monlevade") ? fullDest : `${fullDest}, João Monlevade - MG`
+        );
+        await Linking.openURL(`https://www.waze.com/live-map/directions?to=ll.${queryDest}`);
+      }
     }
   } catch (error) {
     console.error("Waze error:", error);
     Alert.alert("Erro", "Falha ao abrir o Waze.");
+  }
+};
+
+export const openDirectWhatsApp = async ({ phone, message }) => {
+  if (!phone) {
+    Alert.alert("Aviso", "Número de telefone não informado.");
+    return;
+  }
+  const cleanPhone = phone.replace(/\D/g, "");
+  const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+  const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message || "")}`;
+
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Erro", "Não foi possível abrir o WhatsApp.");
+    }
+  } catch (error) {
+    console.error("WhatsApp error:", error);
+    Alert.alert("Erro", "Falha ao abrir o WhatsApp.");
   }
 };

@@ -41,6 +41,34 @@ const CreateRideScreen = ({ navigation }) => {
   const [photoLoading, setPhotoLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // New Features: Women-Only, Recurring, and Preferences
+  const [isWomenOnly, setIsWomenOnly] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringDays, setRecurringDays] = useState(["SEG", "QUA"]);
+  const [selectedPreferences, setSelectedPreferences] = useState(["Ar-Condicionado"]);
+
+  const ALL_PREFERENCES = [
+    { id: "Ar-Condicionado", label: "❄️ Ar-Condicionado" },
+    { id: "Porta-Malas Grande", label: "🧳 Porta-Malas Grande" },
+    { id: "Música Liberada", label: "🎵 Música Liberada" },
+    { id: "Carona Silenciosa", label: "🔇 Carona Silenciosa" },
+    { id: "Não Fumante", label: "🚭 Não Fumante" },
+  ];
+
+  const WEEK_DAYS = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+
+  const togglePreference = (prefId) => {
+    setSelectedPreferences((prev) =>
+      prev.includes(prefId) ? prev.filter((p) => p !== prefId) : [...prev, prefId]
+    );
+  };
+
+  const toggleDay = (day) => {
+    setRecurringDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
   // Toast state
   const [toast, setToast] = useState({ visible: false, type: 'info', message: '' });
 
@@ -92,6 +120,10 @@ const CreateRideScreen = ({ navigation }) => {
       vehicle: vehicle.trim(),
       licensePlate: formatLicensePlate(licensePlate),
       carPhotoUri,
+      isWomenOnly,
+      preferences: selectedPreferences,
+      isRecurring,
+      recurringDays: isRecurring ? recurringDays : [],
     };
 
     const result = await createRide(rideData);
@@ -298,6 +330,94 @@ const CreateRideScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+        {/* WOMEN-ONLY TOGGLE (ELAS POR ELAS) */}
+        <View style={styles.specialCard}>
+          <View style={styles.specialCardHeader}>
+            <View style={styles.iconCirclePink}>
+              <Ionicons name="woman" size={18} color="#BE185D" />
+            </View>
+            <View style={styles.specialCardText}>
+              <Text style={styles.specialCardTitle}>Carona "Elas por Elas"</Text>
+              <Text style={styles.specialCardSubtitle}>Exclusiva para passageiras mulheres (UFOP)</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.toggleBtn, isWomenOnly && styles.toggleBtnActivePink]}
+              onPress={() => setIsWomenOnly(!isWomenOnly)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleBtnText, isWomenOnly && styles.toggleBtnTextActive]}>
+                {isWomenOnly ? "ATIVADO" : "NÃO"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* RECURRING CARPOOL SECTION */}
+        <View style={styles.specialCard}>
+          <View style={styles.specialCardHeader}>
+            <View style={styles.iconCircleBlue}>
+              <Ionicons name="repeat" size={18} color="#1D4ED8" />
+            </View>
+            <View style={styles.specialCardText}>
+              <Text style={styles.specialCardTitle}>Carona Recorrente (Semanal)</Text>
+              <Text style={styles.specialCardSubtitle}>Alinhe com sua grade de aulas do ICEA</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.toggleBtn, isRecurring && styles.toggleBtnActiveBlue]}
+              onPress={() => setIsRecurring(!isRecurring)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleBtnText, isRecurring && styles.toggleBtnTextActive]}>
+                {isRecurring ? "ATIVADO" : "NÃO"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isRecurring && (
+            <View style={styles.daysContainer}>
+              <Text style={styles.daysLabel}>Selecione os dias da semana:</Text>
+              <View style={styles.daysRow}>
+                {WEEK_DAYS.map((day) => {
+                  const selected = recurringDays.includes(day);
+                  return (
+                    <TouchableOpacity
+                      key={day}
+                      style={[styles.dayChip, selected && styles.dayChipSelected]}
+                      onPress={() => toggleDay(day)}
+                    >
+                      <Text style={[styles.dayChipText, selected && styles.dayChipTextSelected]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* CARPOOL PREFERENCES */}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Preferências do Veículo / Trajeto</Text>
+          <View style={styles.prefGrid}>
+            {ALL_PREFERENCES.map((pref) => {
+              const selected = selectedPreferences.includes(pref.id);
+              return (
+                <TouchableOpacity
+                  key={pref.id}
+                  style={[styles.prefChip, selected && styles.prefChipSelected]}
+                  onPress={() => togglePreference(pref.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.prefChipText, selected && styles.prefChipTextSelected]}>
+                    {pref.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         {/* SUBMIT BUTTON */}
         <CustomButton
           title="Publicar Carona no Feed"
@@ -462,6 +582,140 @@ const styles = StyleSheet.create({
     color: COLORS.surface,
     fontSize: 14,
     marginLeft: 6,
+  },
+  specialCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.md,
+    ...SHADOWS.small,
+  },
+  specialCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconCirclePink: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    backgroundColor: "#FCE7F3",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: SPACING.sm,
+  },
+  iconCircleBlue: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: SPACING.sm,
+  },
+  specialCardText: {
+    flex: 1,
+  },
+  specialCardTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+  specialCardSubtitle: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  toggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  toggleBtnActivePink: {
+    backgroundColor: "#BE185D",
+    borderColor: "#BE185D",
+  },
+  toggleBtnActiveBlue: {
+    backgroundColor: "#1D4ED8",
+    borderColor: "#1D4ED8",
+  },
+  toggleBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+  },
+  toggleBtnTextActive: {
+    color: COLORS.surface,
+  },
+  daysContainer: {
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  daysLabel: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginBottom: 6,
+  },
+  daysRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  dayChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dayChipSelected: {
+    backgroundColor: "#1D4ED8",
+    borderColor: "#1D4ED8",
+  },
+  dayChipText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
+  dayChipTextSelected: {
+    color: COLORS.surface,
+  },
+  prefGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+  },
+  prefChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
+  },
+  prefChipSelected: {
+    backgroundColor: COLORS.accentLight,
+    borderColor: COLORS.accent,
+  },
+  prefChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+  },
+  prefChipTextSelected: {
+    color: COLORS.primary,
+    fontWeight: "700",
   },
 });
 

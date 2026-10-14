@@ -101,6 +101,20 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
 
+          {/* Academic & Gender Badges */}
+          <View style={styles.badgePillRow}>
+            <View style={styles.courseBadge}>
+              <Ionicons name="school" size={13} color={COLORS.primary} style={{ marginRight: 4 }} />
+              <Text style={styles.courseBadgeText}>{user.course || "Estudante ICEA UFOP"}</Text>
+            </View>
+
+            {user.gender === "Feminino" && (
+              <View style={styles.femaleBadge}>
+                <Text style={styles.femaleBadgeText}>🌸 Elas por Elas</Text>
+              </View>
+            )}
+          </View>
+
           <View style={styles.ratingBadge}>
             <Ionicons name="star" size={16} color="#F59E0B" style={{ marginRight: 4 }} />
             <Text style={styles.ratingText}>
@@ -129,6 +143,55 @@ const ProfileScreen = ({ navigation }) => {
               {(userStats.averageRating || 5.0).toFixed(1)}
             </Text>
             <Text style={styles.statLabel}>Média ⭐</Text>
+          </View>
+        </View>
+
+        {/* Academic Profile Details */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Vínculo Acadêmico UFOP</Text>
+
+          <View style={styles.infoItem}>
+            <Ionicons name="school-outline" size={20} color={COLORS.primary} style={styles.infoIcon} />
+            <Text style={styles.infoText}>
+              Curso: <Text style={{ fontWeight: "700" }}>{user.course || "Não informado"}</Text>
+            </Text>
+          </View>
+
+          <View style={styles.infoItem}>
+            <Ionicons name="id-card-outline" size={20} color={COLORS.primary} style={styles.infoIcon} />
+            <Text style={styles.infoText}>
+              Matrícula: <Text style={{ fontWeight: "700" }}>{user.studentId || "21.1.ICEA.001"}</Text>
+            </Text>
+          </View>
+
+          <View style={styles.infoItem}>
+            <Ionicons name="male-female-outline" size={20} color={COLORS.primary} style={styles.infoIcon} />
+            <Text style={styles.infoText}>
+              Gênero: <Text style={{ fontWeight: "700" }}>{user.gender || "Não especificado"}</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* Emergency Contact SOS Card */}
+        <View style={styles.section}>
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: SPACING.xs }}>
+            <Ionicons name="shield-checkmark" size={18} color={COLORS.error} style={{ marginRight: 6 }} />
+            <Text style={styles.sectionTitleWithoutMargin}>Contato de Emergência (SOS)</Text>
+          </View>
+          <Text style={styles.sectionSubtitle}>
+            Disparo automático de trajeto, placa e motorista em caso de SOS:
+          </Text>
+
+          <View style={styles.emergencyBox}>
+            <Ionicons name="call" size={18} color={COLORS.error} style={{ marginRight: 8 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.emergencyName}>
+                {user.emergencyContactName || "Nenhum contato cadastrado"}
+              </Text>
+              <Text style={styles.emergencyPhone}>
+                {user.emergencyContactPhone || "Toque em Editar Perfil para cadastrar"}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -249,67 +312,97 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     ...TYPOGRAPHY.caption,
-    fontSize: 14,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.md,
+    marginTop: 2,
+  },
+  badgePillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 6,
+  },
+  courseBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E1F5FE",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: "#B3E5FC",
+  },
+  courseBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.primaryDark,
+  },
+  femaleBadge: {
+    backgroundColor: "#F3E5F5",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: "#E1BEE7",
+  },
+  femaleBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#8E24AA",
   },
   ratingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.warningLight,
-    paddingHorizontal: 12,
+    backgroundColor: COLORS.surfaceAlt,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
+    marginTop: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   ratingText: {
     ...TYPOGRAPHY.bodyBold,
-    fontSize: 15,
     color: COLORS.textPrimary,
   },
   ratingCount: {
     ...TYPOGRAPHY.caption,
-    fontSize: 12,
     color: COLORS.textSecondary,
     marginLeft: 4,
   },
   statsContainer: {
     flexDirection: "row",
     backgroundColor: COLORS.surface,
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.md,
     marginHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
     borderRadius: RADIUS.lg,
+    padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.border,
-    alignItems: "center",
     ...SHADOWS.small,
   },
   statItem: {
     flex: 1,
     alignItems: "center",
   },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: COLORS.border,
-  },
   statNumber: {
-    ...TYPOGRAPHY.h1,
-    fontSize: 22,
+    ...TYPOGRAPHY.h2,
+    fontSize: 18,
     color: COLORS.primary,
   },
   statLabel: {
     ...TYPOGRAPHY.caption,
-    fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: COLORS.border,
   },
   section: {
     backgroundColor: COLORS.surface,
     padding: SPACING.lg,
-    marginTop: SPACING.lg,
     marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -320,6 +413,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: SPACING.md,
     color: COLORS.textPrimary,
+  },
+  sectionTitleWithoutMargin: {
+    ...TYPOGRAPHY.h3,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
+  sectionSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    marginBottom: SPACING.sm,
+  },
+  emergencyBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFEBEE",
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+  },
+  emergencyName: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    color: COLORS.error,
+  },
+  emergencyPhone: {
+    ...TYPOGRAPHY.caption,
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    marginTop: 1,
   },
   infoItem: {
     flexDirection: "row",
@@ -332,11 +456,11 @@ const styles = StyleSheet.create({
   infoText: {
     ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
-    fontSize: 15,
+    fontSize: 13.5,
   },
   actions: {
-    padding: SPACING.lg,
-    marginTop: SPACING.md,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
   },
 });
 

@@ -1,10 +1,22 @@
 // src/components/RouteMap.js
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Linking } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Platform } from "react-native";
 import { WebView } from "react-native-webview";
 import { convertSad69ToSirgas2000Offline } from "../services/geodeticService";
+import { getLocationCoordinates } from "../constants/locations";
+import { openGoogleMapsRoute } from "../utils/formatters";
 
-const RouteMap = ({ origin, destination, driverName }) => {
+const RouteMap = ({
+  origin,
+  destination,
+  driverName,
+  fromLat,
+  fromLng,
+  toLat,
+  toLng,
+  fromAddress,
+  toAddress,
+}) => {
   const [coordinates, setCoordinates] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,11 +34,6 @@ const RouteMap = ({ origin, destination, driverName }) => {
       Shopping: { latitude: -19.816, longitude: -43.165 },
       Itabira: { latitude: -19.825, longitude: -43.205 },
       UFOP: { latitude: -19.815, longitude: -43.175 }, // Local João Monlevade campus
-    };
-
-    const defaultCoord = {
-      latitude: -19.8126,
-      longitude: -43.1736,
     };
 
     const normalizeString = (str) => {
@@ -80,12 +87,29 @@ const RouteMap = ({ origin, destination, driverName }) => {
         return joaoMonlevadeRoutes["ICEA"];
       }
 
-      return null;
+      const preset = getLocationCoordinates(name);
+      return { latitude: preset.lat, longitude: preset.lng };
     };
 
     try {
-      let rawOriginCoord = findRouteCoordinate(origin) || defaultCoord;
-      let rawDestCoord = findRouteCoordinate(destination) || defaultCoord;
+      const defaultCoord = { latitude: -19.81542, longitude: -43.17391 };
+      const validNum = (val) => val !== null && val !== undefined && !isNaN(Number(val));
+
+      let rawOriginCoord = (validNum(fromLat) && validNum(fromLng))
+        ? { latitude: Number(fromLat), longitude: Number(fromLng) }
+        : (findRouteCoordinate(origin) || defaultCoord);
+
+      let rawDestCoord = (validNum(toLat) && validNum(toLng))
+        ? { latitude: Number(toLat), longitude: Number(toLng) }
+        : (findRouteCoordinate(destination) || defaultCoord);
+
+      if (!rawOriginCoord || !validNum(rawOriginCoord.latitude) || !validNum(rawOriginCoord.longitude)) {
+        rawOriginCoord = defaultCoord;
+      }
+
+      if (!rawDestCoord || !validNum(rawDestCoord.latitude) || !validNum(rawDestCoord.longitude)) {
+        rawDestCoord = defaultCoord;
+      }
 
       // Safety offset if coordinates are identical (prevents overlaps and forces polyline visibility)
       if (rawOriginCoord.latitude === rawDestCoord.latitude && rawOriginCoord.longitude === rawDestCoord.longitude) {
@@ -110,20 +134,18 @@ const RouteMap = ({ origin, destination, driverName }) => {
     } finally {
       setLoading(false);
     }
-  }, [origin, destination]);
+  }, [origin, destination, fromLat, fromLng, toLat, toLng]);
 
   const handleOpenInMaps = () => {
-    if (!coordinates) return;
-    
-    // Open route in standard native maps app
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${coordinates.origin.latitude},${coordinates.origin.longitude}&destination=${coordinates.destination.latitude},${coordinates.destination.longitude}&travelmode=driving`;
-    
-    Linking.canOpenURL(url).then((supported) => {
-      if (supported) {
-        Linking.openURL(url);
-      } else {
-        Linking.openURL(`geo:${coordinates.origin.latitude},${coordinates.origin.longitude}?q=${coordinates.destination.latitude},${coordinates.destination.longitude}`);
-      }
+    openGoogleMapsRoute({
+      origin,
+      destination,
+      fromAddress,
+      toAddress,
+      fromLat: fromLat || (coordinates ? coordinates.origin.latitude : null),
+      fromLng: fromLng || (coordinates ? coordinates.origin.longitude : null),
+      toLat: toLat || (coordinates ? coordinates.destination.latitude : null),
+      toLng: toLng || (coordinates ? coordinates.destination.longitude : null),
     });
   };
 
@@ -222,13 +244,26 @@ const RouteMap = ({ origin, destination, driverName }) => {
         onPress={handleOpenInMaps}
         style={styles.touchable}
       >
-        <WebView
-          originWhitelist={['*']}
-          source={{ html: htmlString }}
-          style={styles.mapWebView}
-          scrollEnabled={false}
-          pointerEvents="none" // Allows touch events to fall through to TouchableOpacity for native mapping launch
-        />
+        {Platform.OS === "web" ? (
+          <iframe
+            title="Route Map"
+            srcDoc={htmlString}
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              pointerEvents: "none",
+            }}
+          />
+        ) : (
+          <WebView
+            originWhitelist={['*']}
+            source={{ html: htmlString }}
+            style={styles.mapWebView}
+            scrollEnabled={false}
+            pointerEvents="none"
+          />
+        )}
         <View style={styles.hintOverlay}>
           <Text style={styles.hintText}>Toque para abrir no Google Maps</Text>
         </View>

@@ -122,6 +122,34 @@ const RideCard = ({ ride, onPress, carPhoto, currentUserId }) => {
         </View>
       </View>
 
+      {/* Feature & Preference Badges */}
+      {(ride.isWomenOnly || ride.isRecurring || (Array.isArray(ride.preferences) && ride.preferences.length > 0)) && (
+        <View style={styles.badgeRow}>
+          {ride.isWomenOnly ? (
+            <View style={styles.womenOnlyBadge}>
+              <Ionicons name="woman" size={12} color="#BE185D" style={{ marginRight: 3 }} />
+              <Text style={styles.womenOnlyText}>Elas por Elas</Text>
+            </View>
+          ) : null}
+
+          {ride.isRecurring ? (
+            <View style={styles.recurringBadge}>
+              <Ionicons name="repeat" size={12} color="#1D4ED8" style={{ marginRight: 3 }} />
+              <Text style={styles.recurringText}>
+                Recorrente {Array.isArray(ride.recurringDays) && ride.recurringDays.length > 0 ? `(${ride.recurringDays.join(", ")})` : ""}
+              </Text>
+            </View>
+          ) : null}
+
+          {Array.isArray(ride.preferences) &&
+            ride.preferences.map((pref, i) => (
+              <View key={`pref_${i}`} style={styles.prefBadge}>
+                <Text style={styles.prefText}>{pref}</Text>
+              </View>
+            ))}
+        </View>
+      )}
+
       {/* Vehicle Info Pill */}
       {ride.vehicle ? (
         <View style={styles.vehicleRow}>
@@ -318,6 +346,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     marginLeft: 6,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    marginTop: SPACING.sm,
+  },
+  womenOnlyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FCE7F3",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  womenOnlyText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#BE185D",
+  },
+  recurringBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DBEAFE",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  recurringText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#1D4ED8",
+  },
+  prefBadge: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+  },
+  prefText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
   },
 });
 

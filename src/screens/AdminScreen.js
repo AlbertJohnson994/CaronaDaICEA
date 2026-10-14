@@ -17,7 +17,9 @@ import {
   getAllUsersInDb, 
   resolveReportInDb, 
   toggleUserActiveInDb,
-  getAdminFinancialStatsInDb
+  getAdminFinancialStatsInDb,
+  fetchPendingWithdrawalsInDb,
+  confirmWithdrawalInDb,
 } from '../services/sqliteService';
 import { formatDate, formatTime } from '../utils/formatters';
 import CustomButton from '../components/CustomButton';
@@ -28,6 +30,7 @@ const AdminScreen = () => {
   const { user } = useContext(AuthContext);
   const [reports, setReports] = useState([]);
   const [users, setUsers] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
   const [financialStats, setFinancialStats] = useState({
     totalVolume: 0,
     totalPlatformRevenue: 0,
@@ -35,7 +38,7 @@ const AdminScreen = () => {
     transactions: [],
   });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('revenue'); // revenue, reports, users
+  const [activeTab, setActiveTab] = useState('revenue'); // revenue, withdrawals, reports, users
 
   // Toast state
   const [toast, setToast] = useState({ visible: false, type: 'info', message: '' });
@@ -50,6 +53,9 @@ const AdminScreen = () => {
       if (activeTab === 'revenue') {
         const stats = await getAdminFinancialStatsInDb();
         setFinancialStats(stats);
+      } else if (activeTab === 'withdrawals') {
+        const wData = await fetchPendingWithdrawalsInDb();
+        setWithdrawals(wData);
       } else if (activeTab === 'reports') {
         const reportsData = await getUnresolvedReportsInDb();
         setReports(reportsData);
@@ -83,6 +89,32 @@ const AdminScreen = () => {
     } catch (error) {
       showToast('error', 'Não foi possível resolver a denúncia.');
     }
+  };
+
+  const handleConfirmWithdrawal = async (withdrawalId, driverName, amount) => {
+    Alert.alert(
+      "Confirmar Pagamento de Saque",
+      `Você confirma que efetuou a transferência Pix de R$ ${Number(amount).toFixed(2)} para ${driverName}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar Pagamento",
+          onPress: async () => {
+            try {
+              const res = await confirmWithdrawalInDb(withdrawalId, user.uid);
+              if (res.success) {
+                showToast('success', 'Saque confirmado e liquidado!');
+                loadData();
+              } else {
+                showToast('error', res.error || 'Erro ao confirmar saque.');
+              }
+            } catch (e) {
+              showToast('error', 'Erro ao processar confirmação de saque.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleToggleUserStatus = async (userId, currentActive) => {
@@ -124,15 +156,25 @@ const AdminScreen = () => {
           style={[styles.tab, activeTab === 'revenue' && styles.activeTab]}
           onPress={() => setActiveTab('revenue')}
         >
-          <Ionicons name="cash-outline" size={18} color={activeTab === 'revenue' ? COLORS.primary : COLORS.textMuted} />
-          <Text style={[styles.tabText, activeTab === 'revenue' && styles.activeTabText]}>Comissões (25%)</Text>
+          <Ionicons name="cash-outline" size={16} color={activeTab === 'revenue' ? COLORS.primary : COLORS.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'revenue' && styles.activeTabText]}>Comissões</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'withdrawals' && styles.activeTab]}
+          onPress={() => setActiveTab('withdrawals')}
+        >
+          <Ionicons name="wallet-outline" size={16} color={activeTab === 'withdrawals' ? COLORS.primary : COLORS.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'withdrawals' && styles.activeTabText]}>
+            Saques ({withdrawals.length})
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tab, activeTab === 'reports' && styles.activeTab]}
           onPress={() => setActiveTab('reports')}
         >
-          <Ionicons name="warning-outline" size={18} color={activeTab === 'reports' ? COLORS.primary : COLORS.textMuted} />
+          <Ionicons name="warning-outline" size={16} color={activeTab === 'reports' ? COLORS.primary : COLORS.textMuted} />
           <Text style={[styles.tabText, activeTab === 'reports' && styles.activeTabText]}>Denúncias</Text>
         </TouchableOpacity>
 
@@ -140,7 +182,7 @@ const AdminScreen = () => {
           style={[styles.tab, activeTab === 'users' && styles.activeTab]}
           onPress={() => setActiveTab('users')}
         >
-          <Ionicons name="people-outline" size={18} color={activeTab === 'users' ? COLORS.primary : COLORS.textMuted} />
+          <Ionicons name="people-outline" size={16} color={activeTab === 'users' ? COLORS.primary : COLORS.textMuted} />
           <Text style={[styles.tabText, activeTab === 'users' && styles.activeTabText]}>Usuários</Text>
         </TouchableOpacity>
       </View>
@@ -218,6 +260,44 @@ const AdminScreen = () => {
                 ))
               )}
             </>
+          ) : activeTab === 'withdrawals' ? (
+            <>
+              <Text style={styles.sectionTitle}>
+                Solicitações de Saque Pendentes ({withdrawals.length})
+              </Text>
+
+              {withdrawals.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="checkmark-done-circle-outline" size={48} color={COLORS.success} />
+                  <Text style={styles.emptyStateText}>Nenhuma solicitação de saque pendente.</Text>
+                </View>
+              ) : (
+                withdrawals.map((w) => (
+                  <View key={w.id} style={styles.withdrawalCard}>
+                    <View style={styles.withdrawalHeaderRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.driverNameText}>{w.driverName || 'Motorista'}</Text>
+                        <Text style={styles.pixKeySubtitle}>Chave Pix: {w.pixKey}</Text>
+                      </View>
+                      <Text style={styles.withdrawAmountText}>R$ {Number(w.amount).toFixed(2)}</Text>
+                    </View>
+
+                    <Text style={styles.withdrawDateText}>
+                      Solicitado em {formatDate(new Date(w.createdAt))} às {formatTime(new Date(w.createdAt))}
+                    </Text>
+
+                    <TouchableOpacity 
+                      style={styles.confirmWithdrawBtn}
+                      onPress={() => handleConfirmWithdrawal(w.id, w.driverName, w.amount)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.confirmWithdrawBtnText}>Confirmar Pagamento Realizado</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </>
           ) : activeTab === 'reports' ? (
             <>
               <Text style={styles.sectionTitle}>
@@ -238,7 +318,7 @@ const AdminScreen = () => {
                     <View style={styles.reportMeta}>
                       <Text style={styles.metaText}>Por: {report.reporterName}</Text>
                       <Text style={styles.metaText}>
-                        {formatDate(report.createdAt.toDate())}
+                        {formatDate(report.createdAt.toDate ? report.createdAt.toDate() : new Date(report.createdAt))}
                       </Text>
                     </View>
 
@@ -263,6 +343,9 @@ const AdminScreen = () => {
                   <View style={styles.userInfo}>
                     <Text style={styles.userName}>{userItem.name}</Text>
                     <Text style={styles.userEmail}>{userItem.email}</Text>
+                    <Text style={styles.userCourseText}>
+                      🎓 {userItem.course || 'Estudante UFOP'} {userItem.studentId ? `• Matrícula: ${userItem.studentId}` : ''}
+                    </Text>
                     <Text style={styles.userType}>
                       {userItem.userType === "driver"
                         ? "Motorista"
@@ -338,10 +421,10 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...TYPOGRAPHY.caption,
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: "600",
     color: COLORS.textSecondary,
-    marginLeft: 4,
+    marginLeft: 3,
   },
   activeTabText: {
     color: COLORS.primary,
@@ -351,17 +434,11 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.lg,
   },
-  sectionTitle: {
-    ...TYPOGRAPHY.h3,
-    fontSize: 17,
-    marginTop: SPACING.lg,
-    marginBottom: SPACING.md,
-    color: COLORS.textPrimary,
-  },
   revenueCard: {
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
     ...SHADOWS.medium,
   },
   revenueTitle: {
@@ -373,12 +450,12 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: "rgba(255, 255, 255, 0.8)",
     marginTop: 2,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   revenueMainBox: {
     backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderRadius: RADIUS.lg,
     padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
     alignItems: "center",
     marginBottom: SPACING.md,
   },
@@ -389,7 +466,7 @@ const styles = StyleSheet.create({
   revenueAmount: {
     fontSize: 32,
     fontWeight: "900",
-    color: COLORS.warning,
+    color: COLORS.surface,
     marginTop: 4,
   },
   revenueRow: {
@@ -397,36 +474,102 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
+    ...SHADOWS.small,
   },
   revenueSubItem: {
     flex: 1,
     alignItems: "center",
   },
+  revenueSubNumber: {
+    ...TYPOGRAPHY.h2,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+  },
+  revenueSubLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
   revenueSubDivider: {
     width: 1,
     backgroundColor: COLORS.border,
   },
-  revenueSubNumber: {
+  sectionTitle: {
     ...TYPOGRAPHY.h3,
-    fontSize: 15,
-    color: COLORS.primary,
-  },
-  revenueSubLabel: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
   },
   emptyState: {
     alignItems: "center",
-    padding: SPACING.xxl,
+    paddingVertical: SPACING.xxl,
   },
   emptyStateText: {
-    ...TYPOGRAPHY.caption,
+    ...TYPOGRAPHY.body,
     color: COLORS.textMuted,
     marginTop: SPACING.sm,
   },
   txCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOWS.small,
+  },
+  txHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  txTitle: {
+    ...TYPOGRAPHY.bodyBold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+  },
+  txDate: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  methodBadge: {
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+  },
+  methodBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+  txDivider: {
+    height: 1,
+    backgroundColor: COLORS.borderLight,
+    marginVertical: SPACING.sm,
+  },
+  txValuesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  valGross: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  valFee: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.success,
+  },
+  valNet: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+  },
+  withdrawalCard: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
@@ -435,57 +578,45 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     ...SHADOWS.small,
   },
-  txHeader: {
+  withdrawalHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: SPACING.xs,
   },
-  txTitle: {
+  driverNameText: {
     ...TYPOGRAPHY.bodyBold,
     fontSize: 14,
     color: COLORS.textPrimary,
   },
-  txDate: {
+  pixKeySubtitle: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
-  methodBadge: {
-    backgroundColor: COLORS.accentLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.sm,
+  withdrawAmountText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: COLORS.primary,
   },
-  methodBadgeText: {
+  withdrawDateText: {
     fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.accent,
+    color: COLORS.textMuted,
+    marginBottom: SPACING.sm,
   },
-  txDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: SPACING.sm,
-  },
-  txValuesRow: {
+  confirmWithdrawBtn: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.success,
+    paddingVertical: 10,
+    borderRadius: RADIUS.md,
   },
-  valGross: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.textSecondary,
-  },
-  valFee: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
+  confirmWithdrawBtnText: {
+    color: "#FFFFFF",
     fontWeight: "700",
-    color: COLORS.warning,
-  },
-  valNet: {
-    ...TYPOGRAPHY.caption,
-    fontSize: 11,
-    color: COLORS.success,
+    fontSize: 13,
   },
   reportCard: {
     backgroundColor: COLORS.surface,
@@ -498,13 +629,14 @@ const styles = StyleSheet.create({
   },
   reportTitle: {
     ...TYPOGRAPHY.h3,
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.danger,
     marginBottom: SPACING.xs,
   },
   reportDescription: {
     ...TYPOGRAPHY.body,
-    fontSize: 14,
+    fontSize: 13,
+    color: COLORS.textPrimary,
     marginBottom: SPACING.md,
   },
   reportMeta: {
@@ -514,47 +646,55 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+    color: COLORS.textSecondary,
+    fontSize: 11,
   },
   userCard: {
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: RADIUS.lg,
-    marginBottom: SPACING.md,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: RADIUS.lg,
+    marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.border,
     ...SHADOWS.small,
   },
   userInfo: {
     flex: 1,
+    marginRight: SPACING.md,
   },
   userName: {
     ...TYPOGRAPHY.bodyBold,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
   },
   userEmail: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
-    fontSize: 13,
+  },
+  userCourseText: {
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: "600",
+    marginTop: 2,
   },
   userType: {
     ...TYPOGRAPHY.caption,
-    fontSize: 11,
     color: COLORS.textMuted,
     marginTop: 2,
+    fontSize: 11,
   },
   statusToggleBtn: {
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 6,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.full,
   },
   statusToggleText: {
-    ...TYPOGRAPHY.badge,
+    ...TYPOGRAPHY.caption,
     fontSize: 12,
+    fontWeight: "700",
   },
 });
 
