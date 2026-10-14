@@ -244,7 +244,13 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.requestMetaRow}>
           <View style={styles.metaBadge}>
             <Ionicons name="time-outline" size={13} color={COLORS.textSecondary} />
-            <Text style={styles.metaBadgeText}>{item.desiredTime}</Text>
+            <Text style={styles.metaBadgeText}>
+              {typeof item.desiredTime === 'string'
+                ? item.desiredTime
+                : item.desiredTime?.toDate
+                ? `${item.desiredTime.toDate().toLocaleDateString('pt-BR')} às ${item.desiredTime.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                : String(item.desiredTime || '')}
+            </Text>
           </View>
           {item.notes ? (
             <Text style={styles.notesText} numberOfLines={2}>

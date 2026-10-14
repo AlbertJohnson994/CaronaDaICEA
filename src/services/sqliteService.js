@@ -1251,11 +1251,23 @@ export const fetchActiveRideRequestsInDb = async () => {
   try {
     const res = await executeSql("SELECT * FROM ride_requests WHERE status = 'ACTIVE' ORDER BY createdAt DESC;");
     const list = res.rows?._array || [];
-    return list.map((r) => ({
-      ...r,
-      desiredTime: { toDate: () => new Date(r.desiredTime) },
-      createdAt: { toDate: () => new Date(r.createdAt) },
-    }));
+    return list.map((r) => {
+      let desiredStr = r.desiredTime;
+      if (desiredStr && typeof desiredStr === 'object' && typeof desiredStr.toDate === 'function') {
+        const d = desiredStr.toDate();
+        desiredStr = `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+      } else if (typeof desiredStr === 'string' && (desiredStr.includes('T') || (desiredStr.length > 10 && desiredStr.includes('-')))) {
+        const d = new Date(desiredStr);
+        if (!isNaN(d.getTime())) {
+          desiredStr = `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        }
+      }
+      return {
+        ...r,
+        desiredTime: String(desiredStr || ''),
+        createdAt: r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt)) : new Date(),
+      };
+    });
   } catch (error) {
     console.error("Error fetching ride requests from SQLite:", error);
     return [];

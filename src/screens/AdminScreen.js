@@ -283,7 +283,7 @@ const AdminScreen = () => {
                     </View>
 
                     <Text style={styles.withdrawDateText}>
-                      Solicitado em {formatDate(new Date(w.createdAt))} às {formatTime(new Date(w.createdAt))}
+                      Solicitado em {formatDate(w.requestedAt || w.createdAt)} às {formatTime(w.requestedAt || w.createdAt)}
                     </Text>
 
                     <TouchableOpacity 

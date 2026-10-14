@@ -300,7 +300,7 @@ const WalletScreen = ({ navigation }) => {
                   </View>
                   <Text style={styles.withdrawalKeyText}>Chave Pix: {w.pixKey}</Text>
                   <Text style={styles.withdrawalDateText}>
-                    {formatDate(new Date(w.createdAt))} • {formatTime(new Date(w.createdAt))}
+                    {formatDate(w.requestedAt || w.createdAt)} • {formatTime(w.requestedAt || w.createdAt)}
                   </Text>
                 </View>
               );
