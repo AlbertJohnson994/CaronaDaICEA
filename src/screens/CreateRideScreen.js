@@ -20,16 +20,19 @@ import PhotoDisplay from "../components/PhotoDisplay";
 import ToastNotification from "../components/ToastNotification";
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../constants/theme";
 import { LOCATION_PRESETS } from "../constants/locations";
+import { syncRideToCampusConnect } from "../services/campusConnectService";
 
-const CreateRideScreen = ({ navigation }) => {
+const CreateRideScreen = ({ navigation, route }) => {
   const { createRide } = useContext(RideContext);
   const { user } = useContext(AuthContext);
 
-  const [from, setFrom] = useState("Campus ICEA");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(
+    route?.params?.prefillTo ? "Centro - Monlevade" : "Campus ICEA"
+  );
+  const [to, setTo] = useState(route?.params?.prefillTo || "");
   const [price, setPrice] = useState("5.00");
   const [seats, setSeats] = useState("3");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(route?.params?.prefillNotes || "");
   const [vehicle, setVehicle] = useState(user?.vehicle || "");
   const [licensePlate, setLicensePlate] = useState(user?.licensePlate || "");
   const [carPhotoUri, setCarPhotoUri] = useState(user?.carPhotoUri || null);
@@ -131,7 +134,17 @@ const CreateRideScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      showToast("success", "Carona publicada com sucesso! Código PIN gerado.");
+      await syncRideToCampusConnect({
+        ...rideData,
+        driverId: user?.uid,
+        driverName: user?.name,
+        driverCourse: user?.course,
+        driverPhone: user?.phone,
+        vehicleModel: rideData.vehicle,
+        vehiclePlate: rideData.licensePlate,
+        linkedEventTitle: route?.params?.prefillEventTitle,
+      });
+      showToast("success", "Carona publicada e sincronizada com o Campus Connect!");
       setTimeout(() => navigation.goBack(), 1200);
     } else {
       showToast("error", "Não foi possível criar a carona: " + result.error);

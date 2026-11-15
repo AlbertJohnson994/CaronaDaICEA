@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.js
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -24,6 +24,11 @@ import EmptyState from '../components/EmptyState';
 import ToastNotification from '../components/ToastNotification';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { formatDate, formatTime, openDirectWhatsApp } from '../utils/formatters';
+import {
+  DEFAULT_CAMPUS_CONNECT_EVENTS,
+  getCampusConnectEvents,
+  openCampusConnectHub,
+} from '../services/campusConnectService';
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
@@ -36,10 +41,15 @@ const HomeScreen = ({ navigation }) => {
     cancelRideRequest 
   } = useContext(RideContext);
   
-  const [activeTab, setActiveTab] = useState('rides'); // 'rides' | 'requests'
+  const [activeTab, setActiveTab] = useState('rides'); // 'rides' | 'requests' | 'events'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); // all, women-only, today, morning, afternoon, night, available, my-rides
   const [refreshing, setRefreshing] = useState(false);
+  const [campusEvents, setCampusEvents] = useState(DEFAULT_CAMPUS_CONNECT_EVENTS);
+
+  useEffect(() => {
+    getCampusConnectEvents().then(setCampusEvents).catch(() => {});
+  }, []);
 
   // Mural Request Modal State
   const [modalVisible, setModalVisible] = useState(false);
@@ -298,15 +308,24 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.greetingText}>Olá, {user?.name?.split(' ')[0] || 'Estudante'}</Text>
             <Text style={styles.headerTitle}>Caronas ICEA UFOP</Text>
           </View>
-          <TouchableOpacity
-            style={styles.profileBadge}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Ionicons name="person-circle" size={34} color={COLORS.primary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              style={styles.ccHubBtn}
+              onPress={() => openCampusConnectHub('#caronas')}
+            >
+              <Ionicons name="globe-outline" size={14} color="#FFFFFF" />
+              <Text style={styles.ccHubBtnText}>Campus Connect ↗</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.profileBadge}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Ionicons name="person-circle" size={34} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Tab Selector: Caronas vs Mural */}
+        {/* Tab Selector: Caronas vs Mural vs Eventos Campus Connect */}
         <View style={styles.segmentedContainer}>
           <TouchableOpacity 
             style={[styles.segmentBtn, activeTab === 'rides' && styles.segmentBtnActive]}
@@ -314,9 +333,9 @@ const HomeScreen = ({ navigation }) => {
           >
             <Ionicons 
               name="car-sport" 
-              size={16} 
+              size={15} 
               color={activeTab === 'rides' ? COLORS.primary : COLORS.textSecondary} 
-              style={{ marginRight: 6 }}
+              style={{ marginRight: 5 }}
             />
             <Text style={[styles.segmentText, activeTab === 'rides' && styles.segmentTextActive]}>
               Ofertas ({filteredRides.length})
@@ -329,12 +348,27 @@ const HomeScreen = ({ navigation }) => {
           >
             <Ionicons 
               name="megaphone" 
-              size={15} 
+              size={14} 
               color={activeTab === 'requests' ? COLORS.primary : COLORS.textSecondary} 
-              style={{ marginRight: 6 }}
+              style={{ marginRight: 5 }}
             />
             <Text style={[styles.segmentText, activeTab === 'requests' && styles.segmentTextActive]}>
-              Mural de Pedidos ({filteredRequests.length})
+              Mural ({filteredRequests.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.segmentBtn, activeTab === 'events' && styles.segmentBtnActive]}
+            onPress={() => setActiveTab('events')}
+          >
+            <Ionicons 
+              name="calendar" 
+              size={14} 
+              color={activeTab === 'events' ? COLORS.primary : COLORS.textSecondary} 
+              style={{ marginRight: 5 }}
+            />
+            <Text style={[styles.segmentText, activeTab === 'events' && styles.segmentTextActive]}>
+              Eventos CC ({campusEvents.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -344,7 +378,13 @@ const HomeScreen = ({ navigation }) => {
           <Ionicons name="search-outline" size={18} color={COLORS.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder={activeTab === 'rides' ? "Buscar caronas (ICEA, Bauxita...)" : "Buscar pedidos no mural..."}
+            placeholder={
+              activeTab === 'rides'
+                ? 'Buscar caronas (ICEA, Bauxita...)'
+                : activeTab === 'requests'
+                ? 'Buscar pedidos no mural...'
+                : 'Buscar eventos acadêmicos no Campus Connect...'
+            }
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={COLORS.textMuted}
@@ -421,7 +461,7 @@ const HomeScreen = ({ navigation }) => {
             contentContainerStyle={styles.listContent}
           />
         )
-      ) : (
+      ) : activeTab === 'requests' ? (
         /* Mural de Pedidos Tab */
         <FlatList
           data={filteredRequests}
@@ -452,6 +492,97 @@ const HomeScreen = ({ navigation }) => {
               onAction={handleOpenRequestModal}
             />
           }
+          contentContainerStyle={styles.listContent}
+        />
+      ) : (
+        /* Eventos Campus Connect Tab */
+        <FlatList
+          data={campusEvents.filter((ev) => {
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.toLowerCase();
+            return (
+              ev.title.toLowerCase().includes(q) ||
+              ev.venue.toLowerCase().includes(q) ||
+              ev.organizer.toLowerCase().includes(q)
+            );
+          })}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={
+            <View style={styles.muralBanner}>
+              <Ionicons name="globe-outline" size={20} color="#6849FF" style={{ marginRight: 8 }} />
+              <Text style={styles.muralBannerText}>
+                Eventos sincronizados com o Campus Connect! Ofereça ou peça carona diretamente para eventos e grupos de estudo da UFOP ICEA.
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.requestCard}>
+              <View style={styles.requestHeader}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.requestUserName}>{item.title}</Text>
+                  <Text style={styles.requestUserCourse}>
+                    {item.organizer} · {item.university}
+                  </Text>
+                </View>
+                <View style={styles.priceTag}>
+                  <Text style={styles.priceTagLabel}>{item.category}</Text>
+                  <Text style={styles.priceTagValue}>
+                    {item.occupied}/{item.capacity}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.requestRouteBox}>
+                <View style={styles.routeItem}>
+                  <Ionicons name="calendar-outline" size={12} color={COLORS.primary} style={styles.routeDot} />
+                  <Text style={styles.routeText}>
+                    <Text style={styles.routeLabel}>Horário: </Text>{item.dateTimeLabel}
+                  </Text>
+                </View>
+                <View style={styles.routeItem}>
+                  <Ionicons name="location" size={12} color={COLORS.accent} style={styles.routeDot} />
+                  <Text style={styles.routeText}>
+                    <Text style={styles.routeLabel}>Local: </Text>{item.venueDetail || item.venue}
+                  </Text>
+                </View>
+              </View>
+
+              {item.description ? (
+                <Text style={[styles.notesText, { marginBottom: 10 }]}>
+                  {item.description}
+                </Text>
+              ) : null}
+
+              <View style={[styles.requestActionsRow, { gap: 8, flexWrap: 'wrap' }]}>
+                <TouchableOpacity
+                  style={[styles.offerRideBtn, { backgroundColor: COLORS.primary, flex: 1 }]}
+                  onPress={() =>
+                    navigation.navigate('CreateRide', {
+                      prefillTo: item.venue,
+                      prefillEventTitle: item.title,
+                      prefillNotes: `Carona para o evento Campus Connect: ${item.title}`,
+                    })
+                  }
+                >
+                  <Ionicons name="car-sport" size={15} color="#FFFFFF" />
+                  <Text style={styles.offerRideBtnText}>Oferecer Carona p/ Evento</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.offerRideBtn, { backgroundColor: '#6849FF', flex: 1 }]}
+                  onPress={() => {
+                    setReqTo(item.venue);
+                    setReqTime(item.dateTimeLabel);
+                    setReqNotes(`Indo para o evento Campus Connect: ${item.title}`);
+                    setModalVisible(true);
+                  }}
+                >
+                  <Ionicons name="megaphone" size={14} color="#FFFFFF" />
+                  <Text style={styles.offerRideBtnText}>Pedir no Mural</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
           contentContainerStyle={styles.listContent}
         />
       )}
@@ -618,6 +749,20 @@ const styles = StyleSheet.create({
   },
   profileBadge: {
     padding: 2,
+  },
+  ccHubBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6849FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    gap: 5,
+  },
+  ccHubBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   segmentedContainer: {
     flexDirection: 'row',

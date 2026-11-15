@@ -164,4 +164,29 @@ graph TD
   - **[CreateRideScreen.js](src/screens/CreateRideScreen.js):** Defaulted initial departure time to +2 hours in the future so new rides do not immediately trigger past-time validation errors.
   - **[firebase.js](src/services/firebase.js):** Replaced unused legacy Firebase imports and hardcoded keys with a clean local SQLite compatibility stub.
 
+---
+
+## 🌐 Part 8: Bidirectional Integration — Caronas ICEA × Campus Connect
+
+### 1. Campus Connect (`C:\Projects\campus-connect`) Enhancements
+- **Shared Mobility Types ([packages/shared/src/index.ts](file:///C:/Projects/campus-connect/packages/shared/src/index.ts)):** Added `CampusRideOffer`, `CampusRideRequest`, `RidePassengerEntry`, `CreateCampusRidePayload`, and `CreateCampusRideRequestPayload`.
+- **NestJS Mobility & Wallet API ([apps/api/src/rides.controller.ts](file:///C:/Projects/campus-connect/apps/api/src/rides.controller.ts) & [apps/api/src/app.module.ts](file:///C:/Projects/campus-connect/apps/api/src/app.module.ts)):**
+  - `GET /rides` & `POST /rides`: Lists and creates campus carpool offers across UFOP ICEA and Osnabrück.
+  - `POST /rides/:id/reserve`: Reserves a passenger seat and generates a unique 4-digit Boarding PIN.
+  - `POST /rides/:id/verify-pin`: Validates the passenger's 4-digit Boarding PIN and credits **75% net payout** (25% platform maintenance fee) to the driver's wallet.
+  - `GET /rides/requests`, `POST /rides/requests`, `DELETE /rides/requests/:id`: Manages the **Mural de Pedidos** ride request board.
+  - `GET /rides/wallet/:userId` & `POST /rides/wallet/:userId/withdraw`: Processes instant driver Pix withdrawals.
+- **UFOP — Campus ICEA Data & EMV Pix Engine ([apps/web/src/campusData.ts](file:///C:/Projects/campus-connect/apps/web/src/campusData.ts)):**
+  - Added **UFOP — Campus ICEA (João Monlevade)** to `UNIVERSITIES`, UFOP ICEA degree courses to `STUDY_PROGRAMS`, DECSI/DEENP modules (`BCC202`, `BCC321`, `ENP104`) to `MODULE_CATALOG`, and UFOP ICEA events (`Hackathon DeCSI & IA`, `Torneio Intercursos de Futsal ICEA`) to `INITIAL_EVENTS`.
+  - Implemented `generateCampusPixPayload()` (Banco Central EMV QRCPS-MPM + CRC16-CCITT) and seeded `INITIAL_CARPOOL_RIDES` & `INITIAL_RIDE_REQUESTS`.
+- **Caronas ICEA Mobility Hub Tab & Event Modals ([apps/web/src/App.tsx](file:///C:/Projects/campus-connect/apps/web/src/App.tsx) & [apps/web/src/styles.css](file:///C:/Projects/campus-connect/apps/web/src/styles.css)):**
+  - Added the **Caronas (`Rides`)** tab in the left navigation rail with sub-tabs for **Ofertas de Carona**, **Mural de Pedidos**, and **Carteira & Pix (75% Líquido)**.
+  - Added **Event-to-Carpool integration** inside every Event Detail Modal (`Buscar Carona p/ Evento` & `+ Oferecer Carona p/ Evento`), 1-click **Chat with Driver** inside Campus Connect's `Chats` tab, **4-digit Boarding PIN verification**, **Pix Copia e Cola** modal, and **Google Maps / Waze** route deep-links.
+
+### 2. Caronas ICEA (`c:\Projects\CaronaDaICEA-main`) Enhancements
+- **Campus Connect Service Bridge ([src/services/campusConnectService.js](src/services/campusConnectService.js)):** Connects `Caronas ICEA` to `Campus Connect` (`http://localhost:5173` and `/api/events`), syncs newly published rides into shared `localStorage` (`cc_caronas_icea_rides_v1`), and provides 1-click deep-linking to Campus Connect.
+- **Eventos CC Tab & Header Bridge ([src/screens/HomeScreen.js](src/screens/HomeScreen.js) & [src/screens/CreateRideScreen.js](src/screens/CreateRideScreen.js)):**
+  - Added a **`Campus Connect ↗`** button in the top header and a 3rd segmented tab **`Eventos CC`** displaying synchronized Campus Connect events with 1-click **"Oferecer Carona p/ Evento"** (auto-filling destination and event notes in `CreateRideScreen`) and **"Pedir no Mural"**.
+
+
 
