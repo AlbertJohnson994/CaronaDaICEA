@@ -149,6 +149,7 @@ export default function AppNavigator() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.globalLinksScroll}
             contentContainerStyle={styles.globalLinksRow}
           >
             <TouchableOpacity
@@ -184,11 +185,11 @@ export default function AppNavigator() {
               <Text style={styles.deviceSwitchText}>
                 {isDesktop
                   ? isPt
-                    ? '🖥️ Desktop App (Mudar p/ Mobile)'
-                    : '🖥️ Desktop App (Switch to Mobile)'
+                    ? 'Desktop (Mudar p/ Mobile)'
+                    : 'Desktop (Switch to Mobile)'
                   : isPt
-                  ? '📱 Mobile App (Mudar p/ Desktop)'
-                  : '📱 Mobile App (Switch to Desktop)'}
+                  ? 'Mobile (Mudar p/ Desktop)'
+                  : 'Mobile (Switch to Desktop)'}
               </Text>
             </TouchableOpacity>
 
@@ -273,17 +274,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryDark,
     borderBottomWidth: 2,
     borderBottomColor: COLORS.accent,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
+  },
+  globalLinksScroll: {
+    flexGrow: 0,
   },
   globalLinksRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 8,
   },
   portalLinkChip: {

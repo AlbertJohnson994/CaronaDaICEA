@@ -262,40 +262,26 @@ const CampusConnectScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Unified Super-App Top Header with UFOP Logo & PT / EN Switcher */}
+      {/* Sub-Navigation Bar (No duplicate UFOP Logo / Portal / Lang buttons) */}
       <View style={styles.heroHeader}>
         <View style={styles.heroTopRow}>
-          <UfopLogo size="sm" light showSubtitle={false} />
-
-          <View style={styles.headerRightBtns}>
-            <TouchableOpacity
-              style={[styles.langToggleBtn, { backgroundColor: COLORS.accent }]}
-              onPress={() => openUfopUrl(UFOP_LINKS.portal)}
-            >
-              <Ionicons name="globe-outline" size={14} color={COLORS.primaryDark} />
-              <Text style={[styles.langToggleText, { color: COLORS.primaryDark }]}>
-                ufop.br ↗
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.langToggleBtn} onPress={toggleLang}>
-              <Ionicons name="language" size={14} color="#FFFFFF" />
-              <Text style={styles.langToggleText}>
-                {lang === 'pt' ? '🇧🇷 PT ⇄ 🇬🇧 EN' : '🇬🇧 EN ⇄ 🇧🇷 PT'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.externalWebBtn}
-              onPress={() => openCampusConnectHub('#events')}
-            >
-              <Ionicons name="open-outline" size={14} color="#F3E5AB" />
-            </TouchableOpacity>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={styles.heroTitle}>{t('ccHeroTitle')}</Text>
+            <Text style={styles.heroSub} numberOfLines={1}>
+              {t('ccHeroSub')}
+            </Text>
           </View>
-        </View>
 
-        <Text style={styles.heroTitle}>{t('ccHeroTitle')}</Text>
-        <Text style={styles.heroSub}>{t('ccHeroSub')}</Text>
+          <TouchableOpacity
+            style={styles.externalWebBtn}
+            onPress={() => openCampusConnectHub('#events')}
+          >
+            <Ionicons name="open-outline" size={14} color={COLORS.primaryDark} />
+            <Text style={styles.externalWebBtnText}>
+              {lang === 'pt' ? 'Workspace Web ↗' : 'Web Workspace ↗'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* 4 Unified Sub-Tabs */}
         <ScrollView
@@ -943,68 +929,43 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   heroHeader: {
-    backgroundColor: COLORS.primaryDark,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.accent,
-    paddingTop: SPACING.md,
+    backgroundColor: '#3B0A18',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(197, 155, 39, 0.35)',
+    paddingTop: 10,
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
-    ...SHADOWS.medium,
+    paddingBottom: 10,
+    ...SHADOWS.small,
   },
   heroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  heroBadge: {
+  externalWebBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
     gap: 5,
   },
-  heroBadgeText: {
-    color: '#FDE047',
-    fontSize: 9.5,
-    fontWeight: '800',
-  },
-  headerRightBtns: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  langToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#6849FF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.full,
-    gap: 5,
-  },
-  langToggleText: {
-    color: '#FFFFFF',
+  externalWebBtnText: {
+    color: COLORS.primaryDark,
     fontSize: 11,
     fontWeight: '800',
   },
-  externalWebBtn: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    padding: 6,
-    borderRadius: RADIUS.full,
-  },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '800',
   },
   heroSub: {
-    color: '#CBD5E1',
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: 10,
+    color: '#E2E8F0',
+    fontSize: 11.5,
+    marginTop: 1,
   },
   subTabsRow: {
     flexDirection: 'row',

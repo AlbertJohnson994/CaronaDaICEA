@@ -315,13 +315,6 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <TouchableOpacity
-              style={[styles.ccHubBtn, { backgroundColor: COLORS.primaryDark, borderWidth: 1, borderColor: COLORS.accent }]}
-              onPress={() => openUfopUrl(UFOP_LINKS.portal)}
-            >
-              <Ionicons name="globe-outline" size={13} color="#F3E5AB" />
-              <Text style={[styles.ccHubBtnText, { color: '#F3E5AB' }]}>ufop.br ↗</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={styles.ccHubBtn}
               onPress={() => navigation.navigate('CampusConnect')}
             >
