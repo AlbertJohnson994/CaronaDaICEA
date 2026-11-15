@@ -262,28 +262,8 @@ const CampusConnectScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Sub-Navigation Bar (No duplicate UFOP Logo / Portal / Lang buttons) */}
+      {/* Single Compact Sub-Navigation & Action Bar (No stacked maroon banners) */}
       <View style={styles.heroHeader}>
-        <View style={styles.heroTopRow}>
-          <View style={{ flex: 1, paddingRight: 10 }}>
-            <Text style={styles.heroTitle}>{t('ccHeroTitle')}</Text>
-            <Text style={styles.heroSub} numberOfLines={1}>
-              {t('ccHeroSub')}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.externalWebBtn}
-            onPress={() => openCampusConnectHub('#events')}
-          >
-            <Ionicons name="open-outline" size={14} color={COLORS.primaryDark} />
-            <Text style={styles.externalWebBtnText}>
-              {lang === 'pt' ? 'Workspace Web ↗' : 'Web Workspace ↗'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 4 Unified Sub-Tabs */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -305,7 +285,7 @@ const CampusConnectScreen = ({ navigation }) => {
                 <Ionicons
                   name={tab.icon}
                   size={14}
-                  color={active ? '#FFFFFF' : '#CBD5E1'}
+                  color={active ? '#FFFFFF' : COLORS.textSecondary}
                 />
                 <Text style={[styles.subTabText, active && styles.subTabTextActive]}>
                   {tab.label}
@@ -314,6 +294,75 @@ const CampusConnectScreen = ({ navigation }) => {
             );
           })}
         </ScrollView>
+
+        <View style={styles.heroRightActions}>
+          {subTab === 'events' && (
+            <>
+              <View style={styles.viewModeSwitch}>
+                <TouchableOpacity
+                  style={[
+                    styles.viewModeBtn,
+                    eventsViewMode === 'map' && styles.viewModeBtnActive,
+                  ]}
+                  onPress={() => setEventsViewMode('map')}
+                >
+                  <Ionicons
+                    name="map-outline"
+                    size={13}
+                    color={eventsViewMode === 'map' ? '#FFFFFF' : COLORS.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeText,
+                      eventsViewMode === 'map' && styles.viewModeTextActive,
+                    ]}
+                  >
+                    {t('mapToggleMap')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.viewModeBtn,
+                    eventsViewMode === 'list' && styles.viewModeBtnActive,
+                  ]}
+                  onPress={() => setEventsViewMode('list')}
+                >
+                  <Ionicons
+                    name="list-outline"
+                    size={13}
+                    color={eventsViewMode === 'list' ? '#FFFFFF' : COLORS.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeText,
+                      eventsViewMode === 'list' && styles.viewModeTextActive,
+                    ]}
+                  >
+                    {t('mapToggleList')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.createBtn}
+                onPress={() => setCreateEventModal(true)}
+              >
+                <Text style={styles.createBtnText}>{t('createEventBtn')}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <TouchableOpacity
+            style={styles.externalWebBtn}
+            onPress={() => openCampusConnectHub('#events')}
+          >
+            <Ionicons name="open-outline" size={13} color={COLORS.primaryDark} />
+            <Text style={styles.externalWebBtnText}>
+              {lang === 'pt' ? 'Hub Web ↗' : 'Web Hub ↗'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ====================================================================
@@ -321,61 +370,6 @@ const CampusConnectScreen = ({ navigation }) => {
          ==================================================================== */}
       {subTab === 'events' && (
         <ScrollView contentContainerStyle={styles.contentPad}>
-          <View style={styles.toolbarRow}>
-            <View style={styles.viewModeSwitch}>
-              <TouchableOpacity
-                style={[
-                  styles.viewModeBtn,
-                  eventsViewMode === 'map' && styles.viewModeBtnActive,
-                ]}
-                onPress={() => setEventsViewMode('map')}
-              >
-                <Ionicons
-                  name="map-outline"
-                  size={14}
-                  color={eventsViewMode === 'map' ? '#FFFFFF' : COLORS.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.viewModeText,
-                    eventsViewMode === 'map' && styles.viewModeTextActive,
-                  ]}
-                >
-                  {t('mapToggleMap')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.viewModeBtn,
-                  eventsViewMode === 'list' && styles.viewModeBtnActive,
-                ]}
-                onPress={() => setEventsViewMode('list')}
-              >
-                <Ionicons
-                  name="list-outline"
-                  size={14}
-                  color={eventsViewMode === 'list' ? '#FFFFFF' : COLORS.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.viewModeText,
-                    eventsViewMode === 'list' && styles.viewModeTextActive,
-                  ]}
-                >
-                  {t('mapToggleList')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.createBtn}
-              onPress={() => setCreateEventModal(true)}
-            >
-              <Text style={styles.createBtnText}>{t('createEventBtn')}</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Interactive 3D Sketchfab + 3D Campus Blocks + 2D OpenStreetMap for All 3 UFOP Campuses */}
           {eventsViewMode === 'map' && (
             <>
@@ -383,7 +377,7 @@ const CampusConnectScreen = ({ navigation }) => {
                 lang={lang}
                 initialCampusId="joao-monlevade"
                 initialMode="sketchfab3d"
-                height={370}
+                height={450}
                 onSelectBuildingRide={(bldg, campus) =>
                   navigation.navigate('CreateRide', {
                     prefillTo: `${bldg.code} — ${campus.shortPt}`,
@@ -929,72 +923,69 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   heroHeader: {
-    backgroundColor: '#3B0A18',
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(197, 155, 39, 0.35)',
-    paddingTop: 10,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: 10,
-    ...SHADOWS.small,
-  },
-  heroTopRow: {
+    borderBottomColor: COLORS.border,
+    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  heroRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   externalWebBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.accent,
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
-    gap: 5,
+    gap: 4,
   },
   externalWebBtnText: {
     color: COLORS.primaryDark,
     fontSize: 11,
     fontWeight: '800',
   },
-  heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  heroSub: {
-    color: '#E2E8F0',
-    fontSize: 11.5,
-    marginTop: 1,
-  },
   subTabsRow: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 6,
   },
   subTabPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
     gap: 6,
   },
   subTabPillActive: {
     backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   subTabText: {
-    color: '#CBD5E1',
+    color: COLORS.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   subTabTextActive: {
     color: '#FFFFFF',
     fontWeight: '800',
   },
   contentPad: {
-    padding: SPACING.md,
-    paddingBottom: 40,
+    padding: SPACING.sm,
+    paddingBottom: 32,
   },
   toolbarRow: {
     flexDirection: 'row',

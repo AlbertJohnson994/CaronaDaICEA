@@ -800,32 +800,8 @@ export default function UfopCampusMap3D2D({
 
   return (
     <View style={styles.card}>
-      {/* Top Header: 3 Campuses of UFOP Selector */}
+      {/* Compact Single-Row Campus & 3D/2D Mode Selector (No redundant maroon banner) */}
       <View style={styles.headerBlock}>
-        <View style={styles.headerTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionEyebrow}>
-              🏛️ {isPt ? 'MAPAS 3D & 2D DOS 3 CAMPI DA UFOP' : 'UFOP 3-CAMPUS 3D & 2D INTERACTIVE MAPS'}
-            </Text>
-            <Text style={styles.campusMainTitle}>
-              {isPt ? activeCampus.titlePt : activeCampus.titleEn}
-            </Text>
-            <Text style={styles.campusSubtitle}>
-              {isPt ? activeCampus.subtitlePt : activeCampus.subtitleEn}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.portalBtn}
-            onPress={() => openUfopUrl(activeCampus.portalUrl || UFOP_LINKS.portal)}
-          >
-            <Ionicons name="globe-outline" size={14} color="#F3E5AB" />
-            <Text style={styles.portalBtnText}>
-              {isPt ? 'Portal UFOP ↗' : 'UFOP Portal ↗'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         {/* 3 UFOP Campuses Tabs */}
         <ScrollView
           horizontal
@@ -843,7 +819,7 @@ export default function UfopCampusMap3D2D({
                 <Ionicons
                   name="business"
                   size={13}
-                  color={active ? COLORS.primaryDark : '#F3E5AB'}
+                  color={active ? '#FFFFFF' : COLORS.primary}
                 />
                 <Text style={[styles.campusPillText, active && styles.campusPillTextActive]}>
                   {isPt ? c.shortPt : c.shortEn}
@@ -861,11 +837,11 @@ export default function UfopCampusMap3D2D({
           >
             <Ionicons
               name="cube"
-              size={14}
+              size={13}
               color={mapMode === 'sketchfab3d' ? '#FFFFFF' : COLORS.primary}
             />
             <Text style={[styles.modeBtnText, mapMode === 'sketchfab3d' && styles.modeBtnTextActive]}>
-              {isPt ? 'Sketchfab 3D Oficial UFOP' : 'Official Sketchfab 3D UFOP'}
+              {isPt ? 'Sketchfab 3D UFOP' : 'Sketchfab 3D UFOP'}
             </Text>
           </TouchableOpacity>
 
@@ -875,11 +851,11 @@ export default function UfopCampusMap3D2D({
           >
             <Ionicons
               name="layers"
-              size={14}
+              size={13}
               color={mapMode === '3d' ? '#FFFFFF' : COLORS.primary}
             />
             <Text style={[styles.modeBtnText, mapMode === '3d' && styles.modeBtnTextActive]}>
-              {isPt ? 'Mapa 3D dos Blocos' : '3D Campus Blocks'}
+              {isPt ? '3D Blocos' : '3D Blocks'}
             </Text>
           </TouchableOpacity>
 
@@ -889,11 +865,11 @@ export default function UfopCampusMap3D2D({
           >
             <Ionicons
               name="map"
-              size={14}
+              size={13}
               color={mapMode === '2d' ? '#FFFFFF' : COLORS.primary}
             />
             <Text style={[styles.modeBtnText, mapMode === '2d' && styles.modeBtnTextActive]}>
-              {isPt ? 'Mapa 2D (OpenStreetMap)' : '2D Map (OpenStreetMap)'}
+              {isPt ? '2D OpenStreetMap' : '2D OpenStreetMap'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -970,96 +946,62 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   headerBlock: {
-    backgroundColor: COLORS.primaryDark,
-    padding: SPACING.md,
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.accent,
-  },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  sectionEyebrow: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#F3E5AB',
-    letterSpacing: 0.8,
-    marginBottom: 2,
-  },
-  campusMainTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  campusSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.82)',
-    marginTop: 2,
-  },
-  portalBtn: {
+    backgroundColor: '#FAF8F6',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    marginLeft: 8,
-  },
-  portalBtnText: {
-    color: '#F3E5AB',
-    fontSize: 11,
-    fontWeight: '800',
-    marginLeft: 4,
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   campusTabsRow: {
-    paddingVertical: 4,
-    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   campusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(197, 155, 39, 0.5)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderColor: COLORS.border,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: RADIUS.full,
-    marginRight: 8,
   },
   campusPillActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: '#FFFFFF',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   campusPillText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#F3E5AB',
-    marginLeft: 6,
+    color: COLORS.textPrimary,
+    marginLeft: 5,
   },
   campusPillTextActive: {
-    color: COLORS.primaryDark,
-    fontWeight: '900',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   modeSwitchRow: {
     flexDirection: 'row',
-    backgroundColor: '#FAF8F6',
-    borderRadius: RADIUS.md,
-    padding: 4,
-    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 3,
     gap: 4,
   },
   modeBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 6,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.full,
   },
   modeBtnActive: {
     backgroundColor: COLORS.primary,
