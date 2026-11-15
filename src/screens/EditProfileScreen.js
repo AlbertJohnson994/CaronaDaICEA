@@ -14,6 +14,7 @@ import { AuthContext } from "../context/AuthContext";
 import CustomButton from "../components/CustomButton";
 import PhotoUploadModal from "../components/PhotoUploadModal";
 import PhotoDisplay from "../components/PhotoDisplay";
+import ToastNotification from "../components/ToastNotification";
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../constants/theme";
 
 const COURSES_LIST = [
@@ -32,6 +33,12 @@ const EditProfileScreen = ({ navigation }) => {
   const [course, setCourse] = useState(user?.course || "Engenharia de Produção");
   const [studentId, setStudentId] = useState(user?.studentId || "");
   const [gender, setGender] = useState(user?.gender || "Feminino");
+  const [userType, setUserType] = useState(user?.userType || "passenger");
+  const [toast, setToast] = useState({ visible: false, type: "info", message: "" });
+
+  const showToast = (type, message) => {
+    setToast({ visible: true, type, message });
+  };
 
   // Emergency contact fields
   const [emergencyContactName, setEmergencyContactName] = useState(user?.emergencyContactName || "");
@@ -70,7 +77,7 @@ const EditProfileScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert("Erro", "Por favor, informe seu nome");
+      showToast("error", "Por favor, informe seu nome completo.");
       return;
     }
 
@@ -82,14 +89,13 @@ const EditProfileScreen = ({ navigation }) => {
       course: course.trim(),
       studentId: studentId.trim(),
       gender,
+      userType,
       emergencyContactName: emergencyContactName.trim(),
       emergencyContactPhone: emergencyContactPhone.trim(),
       driverPhotoUri,
-      ...((user.userType === "driver" || user.userType === "both") && {
-        vehicle: vehicle.trim(),
-        licensePlate: licensePlate.trim().toUpperCase(),
-        carPhotoUri,
-      }),
+      vehicle: vehicle.trim(),
+      licensePlate: licensePlate.trim().toUpperCase(),
+      carPhotoUri,
     };
 
     const result = await updateUserProfile(updates);
@@ -97,19 +103,25 @@ const EditProfileScreen = ({ navigation }) => {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert("Sucesso", "Perfil atualizado com sucesso!", [
-        { text: "OK", onPress: () => navigation.goBack() }
-      ]);
+      showToast("success", "Alterações salvas com sucesso!");
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate("HomeTabs", { screen: "Profile" });
+      }
     } else {
-      Alert.alert(
-        "Erro",
-        "Não foi possível atualizar o perfil: " + result.error,
-      );
+      showToast("error", "Não foi possível atualizar o perfil: " + (result.error || ""));
     }
   };
 
   return (
     <>
+      <ToastNotification
+        visible={toast.visible}
+        type={toast.type}
+        message={toast.message}
+        onClose={() => setToast({ ...toast, visible: false })}
+      />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
         <Text style={styles.title}>Editar Perfil Acadêmico</Text>
 
@@ -162,6 +174,27 @@ const EditProfileScreen = ({ navigation }) => {
                 >
                   <Text style={[styles.chipText, gender === g && styles.chipTextActive]}>
                     {g === "Feminino" ? "🌸 Feminino" : g === "Masculino" ? "Masculino" : "Outro"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Modalidade no App</Text>
+            <View style={styles.chipsRow}>
+              {[
+                { id: "passenger", label: "Passageiro" },
+                { id: "driver", label: "Motorista" },
+                { id: "both", label: "Motorista & Passageiro" },
+              ].map((m) => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[styles.chip, userType === m.id && styles.chipActive]}
+                  onPress={() => setUserType(m.id)}
+                >
+                  <Text style={[styles.chipText, userType === m.id && styles.chipTextActive]}>
+                    {m.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -240,7 +273,7 @@ const EditProfileScreen = ({ navigation }) => {
         </View>
 
         {/* Vehicle Section for Drivers */}
-        {(user.userType === "driver" || user.userType === "both") && (
+        {(userType === "driver" || userType === "both") && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Veículo Cadastrado</Text>
             <PhotoDisplay

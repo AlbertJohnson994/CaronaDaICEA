@@ -517,10 +517,54 @@ export const updateUserProfileInDb = async (uid, updates) => {
       uid,
     ]);
     const userArray = currentRes.rows?._array || [];
-    if (userArray.length === 0) throw new Error("Usuário não encontrado");
+    const currentUser = userArray[0] || {
+      uid,
+      email: updates.email || `${uid}@ufop.edu.br`,
+      name: updates.name || "Estudante UFOP",
+      phone: updates.phone || "",
+      userType: updates.userType || "passenger",
+      vehicle: updates.vehicle || "",
+      licensePlate: updates.licensePlate || "",
+      driverPhotoUri: updates.driverPhotoUri || "",
+      carPhotoUri: updates.carPhotoUri || "",
+      pixKey: updates.pixKey || "",
+      pixType: updates.pixType || "CPF",
+      course: updates.course || "Aluno UFOP",
+      studentId: updates.studentId || "",
+      gender: updates.gender || "",
+      emergencyContactName: updates.emergencyContactName || "",
+      emergencyContactPhone: updates.emergencyContactPhone || "",
+    };
+    const targetUid = currentUser.uid || uid;
 
-    const currentUser = userArray[0];
-    const targetUid = currentUser.uid;
+    if (userArray.length === 0) {
+      await executeSql(
+        `
+        INSERT INTO users (uid, email, password, name, phone, userType, vehicle, licensePlate, driverPhotoUri, carPhotoUri, createdAt, rating, totalRatings, isAdmin, isActive, reservations, ratings, walletBalance, pixKey, pixType, course, studentId, gender, emergencyContactName, emergencyContactPhone)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 5.0, 0, 0, 1, '[]', '[]', 0.0, ?, ?, ?, ?, ?, ?, ?);
+      `,
+        [
+          targetUid,
+          currentUser.email,
+          hashPassword("123456"),
+          currentUser.name,
+          currentUser.phone,
+          currentUser.userType,
+          currentUser.vehicle,
+          currentUser.licensePlate,
+          currentUser.driverPhotoUri,
+          currentUser.carPhotoUri,
+          new Date().toISOString(),
+          currentUser.pixKey,
+          currentUser.pixType,
+          currentUser.course,
+          currentUser.studentId,
+          currentUser.gender,
+          currentUser.emergencyContactName,
+          currentUser.emergencyContactPhone,
+        ]
+      );
+    }
 
     const newName = updates.name !== undefined ? updates.name : currentUser.name;
     const newPhone = updates.phone !== undefined ? updates.phone : currentUser.phone;

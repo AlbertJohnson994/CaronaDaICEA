@@ -48,11 +48,9 @@ const ProfileScreen = ({ navigation }) => {
     loadUserStats();
   }, [user, loadUserStats]);
 
-  const handleLogout = () => {
-    Alert.alert("Sair da Conta", "Deseja realmente encerrar a sessão?", [
-      { text: "Cancelar", style: "cancel" },
-      { text: "Sair", onPress: logout, style: "destructive" },
-    ]);
+  const handleLogout = async () => {
+    showToast("info", "Encerrando sessão UFOP...");
+    await logout();
   };
 
   const handleSwitchToDriver = async () => {

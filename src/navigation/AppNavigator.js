@@ -20,6 +20,7 @@ import MyRideScreen from '../screens/MyRideScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import WalletScreen from '../screens/WalletScreen';
 import UfopLogo, { openUfopUrl } from '../components/UfopLogo';
+import PageTransitionLoader from '../components/PageTransitionLoader';
 import { COLORS, RADIUS, SHADOWS, UFOP_LINKS } from '../constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -129,18 +130,62 @@ function HomeTabs() {
   );
 }
 
+function getActiveRouteName(state) {
+  if (!state || !state.routes) return null;
+  const route = state.routes[state.index ?? 0];
+  if (!route) return null;
+  if (route.state) {
+    return getActiveRouteName(route.state);
+  }
+  return route.name;
+}
+
+const ROUTE_LABELS = {
+  Home: { pt: 'Abrindo Caronas UFOP...', en: 'Opening UFOP Rides...' },
+  CampusConnect: { pt: 'Carregando Mapas 3D/2D & Hub UFOP...', en: 'Loading UFOP 3D/2D Maps & Hub...' },
+  MyRides: { pt: 'Carregando Minhas Caronas...', en: 'Loading My Rides...' },
+  WalletTab: { pt: 'Abrindo Carteira Pix UFOP...', en: 'Opening UFOP Pix Wallet...' },
+  Wallet: { pt: 'Abrindo Carteira Pix UFOP...', en: 'Opening UFOP Pix Wallet...' },
+  Profile: { pt: 'Carregando Perfil Acadêmico UFOP...', en: 'Loading UFOP Academic Profile...' },
+  EditProfile: { pt: 'Abrindo Edição de Perfil...', en: 'Opening Profile Editor...' },
+  CreateRide: { pt: 'Abrindo Publicação de Carona...', en: 'Opening Ride Publisher...' },
+  Ride: { pt: 'Carregando Detalhes da Carona...', en: 'Loading Ride Details...' },
+  Admin: { pt: 'Abrindo Painel Administrativo UFOP...', en: 'Opening UFOP Admin Panel...' },
+};
+
 export default function AppNavigator() {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, logout, transitionState, triggerPageTransition } = useContext(AuthContext);
   const { lang, toggleLang, deviceMode, toggleDeviceMode, t } = useLanguage();
   const isDesktop = deviceMode === 'desktop';
   const isPt = lang !== 'en';
+  const lastRouteRef = React.useRef(null);
 
   if (loading) {
     return null;
   }
 
+  const handleNavStateChange = (state) => {
+    const activeRoute = getActiveRouteName(state);
+    if (activeRoute && lastRouteRef.current && lastRouteRef.current !== activeRoute) {
+      const label = ROUTE_LABELS[activeRoute] || {
+        pt: 'Sincronizando página UFOP...',
+        en: 'Switching UFOP page...',
+      };
+      triggerPageTransition(label.pt, label.en, 2000);
+    }
+    lastRouteRef.current = activeRoute;
+  };
+
   return (
     <View style={styles.rootShell}>
+      <PageTransitionLoader
+        visible={Boolean(transitionState?.visible)}
+        messagePt={transitionState?.messagePt}
+        messageEn={transitionState?.messageEn}
+        lang={lang}
+        durationMs={transitionState?.durationMs || 2000}
+      />
+
       {/* Global UFOP Institutional Desktop / Mobile & Portal Bar when logged in */}
       {user && (
         <View style={styles.globalUfopBar}>
@@ -198,6 +243,16 @@ export default function AppNavigator() {
                 {lang === 'pt' ? '🇧🇷 PT | EN' : '🇬🇧 EN | PT'}
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutQuickBtn}
+              onPress={logout}
+            >
+              <Ionicons name="log-out-outline" size={13} color="#FFFFFF" />
+              <Text style={styles.logoutQuickText}>
+                {isPt ? 'Sair' : 'Log Out'}
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       )}
@@ -205,7 +260,7 @@ export default function AppNavigator() {
       {/* Responsive Frame: Full Widescreen Desktop App OR Authentic Mobile Frame */}
       <View style={[styles.viewportOuter, user && !isDesktop && styles.mobileOuterBg]}>
         <View style={[styles.appFrame, user && !isDesktop && styles.mobilePhoneFrame]}>
-          <NavigationContainer>
+          <NavigationContainer onStateChange={handleNavStateChange}>
             <Stack.Navigator
               screenOptions={{
                 headerStyle: {
@@ -330,6 +385,20 @@ const styles = StyleSheet.create({
   },
   langSwitchText: {
     color: COLORS.primaryDark,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  logoutQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.full,
+    gap: 4,
+  },
+  logoutQuickText: {
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
   },
