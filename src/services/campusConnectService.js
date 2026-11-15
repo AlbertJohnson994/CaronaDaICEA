@@ -152,7 +152,18 @@ export async function syncRideToCampusConnect(rideData) {
 }
 
 export function openCampusConnectHub(hash = '#caronas') {
-  const targetUrl = `${CAMPUS_CONNECT_WEB_URL}/${hash}`;
+  let baseUrl = CAMPUS_CONNECT_WEB_URL;
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1'
+  ) {
+    baseUrl = `${window.location.origin}/campus-connect/index.html`;
+  }
+  const targetUrl = baseUrl.endsWith('.html')
+    ? `${baseUrl}${hash}`
+    : `${baseUrl}/${hash}`;
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
   } else {
