@@ -135,3 +135,33 @@ graph TD
   - Selected ride, viewed details and itinerary, opened Pix payment modal, and completed booking.
   - Recorded session: `caronas_demo`.
 
+---
+
+## 🔧 Part 7: GitHub Actions CI/CD Diagnosis (Runs #1–#9) & Final Fixes
+
+### 1. Root Cause Analysis of All 9 Failed Workflow Runs
+- **Runs #1 to #6 (`9ce4dad` through `19db02f`, ~2m 06s – 2m 45s):**
+  - `npm ci` installed the legacy Expo 48 + `firebase` + `firebase-admin` dependency tree (~2 minutes), and then failed at step **`🔍 Check JS Component Syntax`** (`find src -name "*.js" -exec node --check {} +`) because `node --check` on Node 18 uses V8's plain JavaScript parser, which **does not support JSX syntax** (`<View>`, `<TouchableOpacity>`, etc.) present across all React Native screens and components in `src/`, throwing `SyntaxError: Unexpected token '<'`.
+  - Additionally, step **`🧪 Run Security & Financial Logic Tests`** called `require('./src/utils/security.js')` on Node 18 while `src/utils/security.js` uses ES Module `export const` syntax, which throws `ERR_REQUIRE_ESM` / `SyntaxError: Unexpected token 'export'`.
+- **Run #7 (`2e2e8a1`, 36s):**
+  - Removed `firebase` and `firebase-admin` (speeding up `npm ci` to ~30s) and removed `"type": "module"` from `package.json`, but still ran `find src -name "*.js" -exec node --check {} +` on Node 18, failing immediately at 36s on ES module `import` and JSX syntax.
+- **Runs #8 and #9 (`0ec2cd3` and `8297152`, 16s – 17s):**
+  - Upgraded `package.json` to **Expo SDK 57** (`expo@~57.0.28`, `react@19.2.3`, `react-native@0.86.3`), which introduced two immediate failures during `npm ci`:
+    1. Left `"@expo/webpack-config": "^18.0.1"` in `devDependencies`, which requires `peer expo@"^48.0.17"`, conflicting with `expo@"~57.0.28"` (and `fdir@6.5.0` hoisted next to root `picomatch@2.3.1` instead of `tinyglobby`'s `picomatch@4.0.5`), causing `npm ci` to abort with `ERESOLVE` in 16s.
+    2. Kept `node-version: 18` in `.github/workflows/ci.yml`, whereas Expo SDK 57 (`@expo/env`, `@expo/cli`, `brace-expansion`) requires **Node.js `>=20.12.0` / `22`**.
+
+### 2. CI/CD & Codebase Fixes Applied
+- **Updated [.github/workflows/ci.yml](.github/workflows/ci.yml):**
+  - Upgraded CI runtime from Node 18 to **Node 22 LTS** (`node-version: 22`).
+  - Replaced raw `node --check` with **`@babel/core` + `babel-preset-expo` AST verification** across `App.js` and all 36 files in `src/`.
+  - Updated the CI unit test runner to compile ES modules with Babel and verify `security.js`, `pixPayload.js` (EMV BR Code + CRC16), and `webSqliteStorage.js` (25% commission credit and Pix withdrawal debit).
+- **Cleaned [package.json](package.json) & [package-lock.json](package-lock.json):**
+  - Removed obsolete `@expo/webpack-config` (replaced by Metro web bundler in `app.json`) and aligned `fdir`/`picomatch` peer resolution so strict `npm ci` succeeds with zero warnings or errors.
+- **Resolved Application Logic & UI Bugs:**
+  - **[pixPayload.js](src/utils/pixPayload.js) & [RideScreen.js](src/screens/RideScreen.js):** Aligned `name`/`merchantName`, `city`/`merchantCity`, and `txId`/`txid` parameters so generated Pix Copia e Cola strings embed the driver's actual name and ride transaction ID, and added cross-platform Web/Native clipboard support.
+  - **[webSqliteStorage.js](src/services/webSqliteStorage.js) & [sqliteService.js](src/services/sqliteService.js):** Added SQL support for `walletBalance = COALESCE(walletBalance, 0) - ?` so driver Pix withdrawals properly deduct from the wallet balance on Web.
+  - **[RideScreen.js](src/screens/RideScreen.js):** Updated ride preference badges to display all preference labels created in `CreateRideScreen.js` and seeded in `sqliteService.js`.
+  - **[CreateRideScreen.js](src/screens/CreateRideScreen.js):** Defaulted initial departure time to +2 hours in the future so new rides do not immediately trigger past-time validation errors.
+  - **[firebase.js](src/services/firebase.js):** Replaced unused legacy Firebase imports and hardcoded keys with a clean local SQLite compatibility stub.
+
+

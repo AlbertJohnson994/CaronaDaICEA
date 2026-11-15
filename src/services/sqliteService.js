@@ -1289,7 +1289,7 @@ export const cancelRideRequestInDb = async (requestId) => {
 // WITHDRAWAL REQUESTS (SAQUES VIA PIX)
 // ==========================================
 
-export const createWithdrawalRequestInDb = async ({ driverId, driverName, pixKey, pixType, amount }) => {
+export const createWithdrawalRequestInDb = async ({ driverId, driverName, pixKey, pixType = "CPF", amount }) => {
   const numAmount = Number(amount);
   if (isNaN(numAmount) || numAmount <= 0) {
     return { success: false, error: "Valor de saque inválido." };
@@ -1307,7 +1307,7 @@ export const createWithdrawalRequestInDb = async ({ driverId, driverName, pixKey
     const id = "wdr_" + Math.random().toString(36).substr(2, 9);
     const now = new Date().toISOString();
 
-    await executeSql("UPDATE users SET walletBalance = walletBalance - ? WHERE uid = ?;", [numAmount, driverId]);
+    await executeSql("UPDATE users SET walletBalance = COALESCE(walletBalance, 0) - ? WHERE uid = ?;", [numAmount, driverId]);
 
     await executeSql(
       `

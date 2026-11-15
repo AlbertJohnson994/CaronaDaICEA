@@ -44,13 +44,26 @@ function normalizeText(text) {
  * @param {string} [params.city='JOAO MONLEVADE'] City name
  * @param {string} [params.txId='CARONA'] Reference transaction identifier
  */
-export function generatePixCopiaECola({ pixKey, name, amount, city = "JOAO MONLEVADE", txId = "CARONA" }) {
+export function generatePixCopiaECola({
+  pixKey,
+  name,
+  merchantName,
+  amount,
+  city,
+  merchantCity,
+  txId,
+  txid,
+} = {}) {
   if (!pixKey) return "";
 
+  const resolvedName = name || merchantName || "MOTORISTA UFOP";
+  const resolvedCity = city || merchantCity || "JOAO MONLEVADE";
+  const resolvedTxId = txId || txid || "CARONA";
+
   const cleanKey = pixKey.trim();
-  const cleanName = (normalizeText(name) || "MOTORISTA UFOP").slice(0, 25);
-  const cleanCity = (normalizeText(city) || "JOAO MONLEVADE").slice(0, 15);
-  const cleanTxId = (normalizeText(txId) || "CARONA").replace(/ /g, "").slice(0, 25);
+  const cleanName = (normalizeText(resolvedName) || "MOTORISTA UFOP").slice(0, 25);
+  const cleanCity = (normalizeText(resolvedCity) || "JOAO MONLEVADE").slice(0, 15);
+  const cleanTxId = (normalizeText(resolvedTxId) || "CARONA").replace(/ /g, "").slice(0, 25);
   const formattedAmount = Number(amount || 0).toFixed(2);
 
   // 00: Format Indicator

@@ -136,6 +136,7 @@ const WalletScreen = ({ navigation }) => {
         driverName: user.name,
         amount: amountNum,
         pixKey: walletStats.pixKey || user.pixKey,
+        pixType: walletStats.pixType || user.pixType || "CPF",
       });
 
       if (res.success) {

@@ -276,14 +276,37 @@ export const executeWebSql = async (sql, params = []) => {
     const rows = getTableData(table);
     let rowsAffected = 0;
 
-    // Custom handler for walletBalance increment:
+    // Custom handler for walletBalance increment / decrement:
     // UPDATE users SET walletBalance = COALESCE(walletBalance, 0) + ? WHERE uid = ?;
-    if (upper.includes("WALLETBALANCE = COALESCE(WALLETBALANCE, 0) + ?") && upper.includes("WHERE UID = ?")) {
+    // UPDATE users SET walletBalance = COALESCE(walletBalance, 0) - ? WHERE uid = ?;
+    // UPDATE users SET walletBalance = walletBalance - ? WHERE uid = ?;
+    if (
+      (upper.includes("WALLETBALANCE = COALESCE(WALLETBALANCE, 0) + ?") ||
+        upper.includes("WALLETBALANCE = WALLETBALANCE + ?")) &&
+      upper.includes("WHERE UID = ?")
+    ) {
       const increment = paramQueue.shift();
       const targetUid = paramQueue.shift();
       for (const r of rows) {
         if (String(r.uid) === String(targetUid)) {
           r.walletBalance = Number((Number(r.walletBalance || 0) + Number(increment || 0)).toFixed(2));
+          rowsAffected++;
+        }
+      }
+      saveTableData(table, rows);
+      return { rows: { _array: [], length: 0, item: () => null }, insertId: null, rowsAffected };
+    }
+
+    if (
+      (upper.includes("WALLETBALANCE = COALESCE(WALLETBALANCE, 0) - ?") ||
+        upper.includes("WALLETBALANCE = WALLETBALANCE - ?")) &&
+      upper.includes("WHERE UID = ?")
+    ) {
+      const decrement = paramQueue.shift();
+      const targetUid = paramQueue.shift();
+      for (const r of rows) {
+        if (String(r.uid) === String(targetUid)) {
+          r.walletBalance = Number(Math.max(0, Number(r.walletBalance || 0) - Number(decrement || 0)).toFixed(2));
           rowsAffected++;
         }
       }

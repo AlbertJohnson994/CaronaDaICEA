@@ -106,10 +106,10 @@ const RideScreen = ({ route, navigation }) => {
   // Generate Dynamic Pix Payload
   const dynamicPixPayload = generatePixCopiaECola({
     pixKey: driverInfo?.pixKey || "admin@ufop.edu.br",
-    merchantName: (driverInfo?.name || "Motorista ICEA").substring(0, 25),
-    merchantCity: "Joao Monlevade",
+    name: (driverInfo?.name || ride?.driverName || "Motorista ICEA").substring(0, 25),
+    city: "JOAO MONLEVADE",
     amount: grossPrice,
-    txid: (ride?.id || "CARONA").replace(/[^a-zA-Z0-9]/g, "").substring(0, 20),
+    txId: (ride?.id || "CARONA").replace(/[^a-zA-Z0-9]/g, "").substring(0, 20),
   });
 
   const handleOpenPaymentModal = () => {
@@ -205,14 +205,27 @@ const RideScreen = ({ route, navigation }) => {
     );
   };
 
+  const copyTextToClipboard = (text) => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+      if (Clipboard && typeof Clipboard.setString === "function") {
+        Clipboard.setString(text);
+      }
+    } catch (e) {
+      // ignore clipboard fallback errors
+    }
+  };
+
   const handleCopyPixKey = () => {
     const key = driverInfo?.pixKey || "admin@ufop.edu.br";
-    Clipboard.setString(key);
+    copyTextToClipboard(key);
     showToast("success", `Chave Pix (${driverInfo?.pixType || "Chave"}) copiada!`);
   };
 
   const handleCopyPixCopiaECola = () => {
-    Clipboard.setString(dynamicPixPayload);
+    copyTextToClipboard(dynamicPixPayload);
     showToast("success", `Pix Copia e Cola (R$ ${grossPrice.toFixed(2)}) copiado! Cole no seu banco.`);
   };
 
@@ -469,31 +482,20 @@ const RideScreen = ({ route, navigation }) => {
             <View style={styles.prefSection}>
               <Text style={styles.prefTitle}>Preferências da Carona:</Text>
               <View style={styles.prefChipsContainer}>
-                {ride.preferences.includes('ac') && (
-                  <View style={styles.prefChip}>
-                    <Text style={styles.prefChipText}>❄️ Ar-condicionado</Text>
-                  </View>
-                )}
-                {ride.preferences.includes('luggage') && (
-                  <View style={styles.prefChip}>
-                    <Text style={styles.prefChipText}>🧳 Bagagem grande</Text>
-                  </View>
-                )}
-                {ride.preferences.includes('music') && (
-                  <View style={styles.prefChip}>
-                    <Text style={styles.prefChipText}>🎵 Com música</Text>
-                  </View>
-                )}
-                {ride.preferences.includes('silent') && (
-                  <View style={styles.prefChip}>
-                    <Text style={styles.prefChipText}>🔇 Silêncio</Text>
-                  </View>
-                )}
-                {ride.preferences.includes('nonsmoking') && (
-                  <View style={styles.prefChip}>
-                    <Text style={styles.prefChipText}>🚭 Não fumante</Text>
-                  </View>
-                )}
+                {ride.preferences.map((pref, idx) => {
+                  const pLower = String(pref).toLowerCase();
+                  let label = pref;
+                  if (pLower === 'ac' || pLower.includes('ar-condicionado')) label = '❄️ Ar-condicionado';
+                  else if (pLower === 'luggage' || pLower.includes('porta-malas') || pLower.includes('bagagem')) label = '🧳 Porta-malas grande';
+                  else if (pLower === 'music' || pLower.includes('música') || pLower.includes('musica')) label = '🎵 Música liberada';
+                  else if (pLower === 'silent' || pLower.includes('silêncio') || pLower.includes('silenciosa')) label = '🔇 Carona silenciosa';
+                  else if (pLower === 'nonsmoking' || pLower.includes('fumante')) label = '🚭 Não fumante';
+                  return (
+                    <View key={`pref_${idx}`} style={styles.prefChip}>
+                      <Text style={styles.prefChipText}>{label}</Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
           )}

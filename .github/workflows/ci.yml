@@ -18,24 +18,91 @@ jobs:
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: 'npm'
 
       - name: 📦 Install Dependencies
         run: npm ci
 
-      - name: 🔍 Check JS Component Syntax
-        run: |
-          find src -name "*.js" -exec node --check {} +
-
-      - name: 🧪 Run Security & Financial Logic Tests
+      - name: 🔍 Check JS & JSX Component Syntax
         run: |
           node -e "
-            const { hashPassword, verifyPassword, generateRidePin } = require('./src/utils/security.js');
+            const fs = require('fs');
+            const path = require('path');
+            const babel = require('@babel/core');
+
+            function walk(dir) {
+              let results = [];
+              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, entry.name);
+                if (entry.isDirectory()) results = results.concat(walk(full));
+                else if (entry.name.endsWith('.js')) results.push(full);
+              }
+              return results;
+            }
+
+            const files = ['App.js', ...walk('src')];
+            for (const file of files) {
+              const code = fs.readFileSync(file, 'utf8');
+              babel.transformSync(code, {
+                filename: file,
+                presets: ['babel-preset-expo'],
+                ast: false,
+                code: false,
+              });
+            }
+            console.log('✅ Verified syntax & JSX AST for ' + files.length + ' source files!');
+          "
+
+      - name: 🧪 Run Security, Pix & Financial Logic Tests
+        run: |
+          node -e "
+            const fs = require('fs');
+            const babel = require('@babel/core');
+
+            function loadModule(filePath) {
+              const code = fs.readFileSync(filePath, 'utf8');
+              const transformed = babel.transformSync(code, {
+                filename: filePath,
+                presets: ['babel-preset-expo'],
+              }).code;
+              const mod = { exports: {} };
+              const fn = new Function('exports', 'require', 'module', transformed);
+              fn(mod.exports, require, mod);
+              return mod.exports;
+            }
+
+            const { hashPassword, verifyPassword, generateRidePin } = loadModule('./src/utils/security.js');
             const h = hashPassword('123456');
             if (!verifyPassword('123456', h)) process.exit(1);
+            if (verifyPassword('wrong', h)) process.exit(1);
             if (generateRidePin().length !== 4) process.exit(1);
-            console.log('✅ CI Logic Tests Passed!');
+
+            const { generatePixCopiaECola } = loadModule('./src/utils/pixPayload.js');
+            const pix = generatePixCopiaECola({
+              pixKey: '123.456.789-00',
+              name: 'Gabriel Motorista',
+              amount: 10.0,
+              city: 'JOAO MONLEVADE',
+              txId: 'RIDE123'
+            });
+            if (!pix.startsWith('000201') || !pix.includes('br.gov.bcb.pix') || !pix.includes('10.00')) {
+              console.error('Invalid Pix payload:', pix);
+              process.exit(1);
+            }
+
+            const { executeWebSql } = loadModule('./src/services/webSqliteStorage.js');
+            (async () => {
+              await executeWebSql('CREATE TABLE IF NOT EXISTS users (uid TEXT PRIMARY KEY, walletBalance REAL);');
+              await executeWebSql('INSERT INTO users (uid, walletBalance) VALUES (?, ?);', ['u1', 45.0]);
+              await executeWebSql('UPDATE users SET walletBalance = COALESCE(walletBalance, 0) + ? WHERE uid = ?;', [7.5, 'u1']);
+              let res = await executeWebSql('SELECT * FROM users WHERE uid = ?;', ['u1']);
+              if (res.rows._array[0].walletBalance !== 52.5) process.exit(1);
+              await executeWebSql('UPDATE users SET walletBalance = COALESCE(walletBalance, 0) - ? WHERE uid = ?;', [12.5, 'u1']);
+              res = await executeWebSql('SELECT * FROM users WHERE uid = ?;', ['u1']);
+              if (res.rows._array[0].walletBalance !== 40) process.exit(1);
+              console.log('✅ CI Security, Pix & Financial Logic Tests Passed!');
+            })();
           "
 
   expo-build-check:
@@ -50,11 +117,15 @@ jobs:
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: 'npm'
 
       - name: 📦 Install Dependencies
         run: npm ci
 
       - name: 🛠️ Build Expo Web Bundle
+        env:
+          EXPO_NO_TELEMETRY: 1
+          CI: 1
         run: npx expo export --platform web
+

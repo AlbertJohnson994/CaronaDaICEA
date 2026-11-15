@@ -33,8 +33,9 @@ const CreateRideScreen = ({ navigation }) => {
   const [vehicle, setVehicle] = useState(user?.vehicle || "");
   const [licensePlate, setLicensePlate] = useState(user?.licensePlate || "");
   const [carPhotoUri, setCarPhotoUri] = useState(user?.carPhotoUri || null);
-  const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
+  const defaultFutureDate = () => new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const [date, setDate] = useState(defaultFutureDate);
+  const [time, setTime] = useState(defaultFutureDate);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
