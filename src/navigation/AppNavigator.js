@@ -6,8 +6,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AuthContext } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import AuthScreen from '../screens/AuthScreen';
 import HomeScreen from '../screens/HomeScreen';
+import CampusConnectScreen from '../screens/CampusConnectScreen';
 import RideScreen from '../screens/RideScreen';
 import CreateRideScreen from '../screens/CreateRideScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -23,6 +25,7 @@ const Tab = createBottomTabNavigator();
 
 function HomeTabs() {
   const { user } = useContext(AuthContext);
+  const { t } = useLanguage();
 
   return (
     <Tab.Navigator
@@ -31,7 +34,9 @@ function HomeTabs() {
           let iconName;
 
           if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
+            iconName = focused ? 'car-sport' : 'car-sport-outline';
+          } else if (route.name === 'CampusConnect') {
+            iconName = focused ? 'planet' : 'planet-outline';
           } else if (route.name === 'MyRides') {
             iconName = focused ? 'list' : 'list-outline';
           } else if (route.name === 'WalletTab') {
@@ -52,7 +57,16 @@ function HomeTabs() {
         name="Home" 
         component={HomeScreen} 
         options={{ 
-          title: 'Caronas',
+          title: t('tabRides'),
+          headerShown: false
+        }} 
+      />
+
+      <Tab.Screen 
+        name="CampusConnect" 
+        component={CampusConnectScreen} 
+        options={{ 
+          title: t('tabCampusConnect'),
           headerShown: false
         }} 
       />
@@ -62,7 +76,7 @@ function HomeTabs() {
           name="MyRides" 
           component={MyRideScreen} 
           options={{ 
-            title: 'Minhas Caronas',
+            title: t('tabMyRides'),
             headerShown: false
           }} 
         />
@@ -72,7 +86,7 @@ function HomeTabs() {
         name="WalletTab" 
         component={WalletScreen} 
         options={{ 
-          title: 'Carteira',
+          title: t('tabWallet'),
           headerShown: false
         }} 
       />
@@ -81,7 +95,7 @@ function HomeTabs() {
         name="Profile" 
         component={ProfileScreen} 
         options={{ 
-          title: 'Perfil',
+          title: t('tabProfile'),
           headerShown: false
         }} 
       />
@@ -91,7 +105,7 @@ function HomeTabs() {
           name="Admin" 
           component={AdminScreen} 
           options={{ 
-            title: 'Admin',
+            title: t('tabAdmin'),
             headerShown: false
           }} 
         />
@@ -102,6 +116,7 @@ function HomeTabs() {
 
 export default function AppNavigator() {
   const { user, loading } = useContext(AuthContext);
+  const { t } = useLanguage();
 
   if (loading) {
     return null;
@@ -136,27 +151,27 @@ export default function AppNavigator() {
             <Stack.Screen 
               name="Ride" 
               component={RideScreen} 
-              options={{ title: 'Detalhes da Carona' }} 
+              options={{ title: t('stackRideDetails') }} 
             />
             <Stack.Screen 
               name="CreateRide" 
               component={CreateRideScreen} 
-              options={{ title: 'Oferecer Carona' }} 
+              options={{ title: t('stackCreateRide') }} 
             />
             <Stack.Screen 
               name="Wallet" 
               component={WalletScreen} 
-              options={{ title: 'Carteira & Finanças' }} 
+              options={{ title: t('stackWallet') }} 
             />
             <Stack.Screen 
               name="Rating" 
               component={RatingScreen} 
-              options={{ title: 'Avaliar Corrida' }} 
+              options={{ title: t('stackRating') }} 
             />
             <Stack.Screen 
               name="EditProfile" 
               component={EditProfileScreen} 
-              options={{ title: 'Editar Perfil' }} 
+              options={{ title: t('stackEditProfile') }} 
             />
           </>
         )}

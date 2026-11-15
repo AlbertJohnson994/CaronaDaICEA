@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { AuthContext } from '../context/AuthContext';
 import { RideContext } from '../context/RideContext';
+import { useLanguage } from '../context/LanguageContext';
 import RideCard from '../components/RideCard';
 import SkeletonCard from '../components/SkeletonCard';
 import EmptyState from '../components/EmptyState';
@@ -27,11 +28,11 @@ import { formatDate, formatTime, openDirectWhatsApp } from '../utils/formatters'
 import {
   DEFAULT_CAMPUS_CONNECT_EVENTS,
   getCampusConnectEvents,
-  openCampusConnectHub,
 } from '../services/campusConnectService';
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
+  const { lang, toggleLang, t } = useLanguage();
   const { 
     rides, 
     loading, 
@@ -304,17 +305,28 @@ const HomeScreen = ({ navigation }) => {
       {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
-          <View>
-            <Text style={styles.greetingText}>Olá, {user?.name?.split(' ')[0] || 'Estudante'}</Text>
-            <Text style={styles.headerTitle}>Caronas ICEA UFOP</Text>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={styles.greetingText}>
+              {t('greeting')}, {user?.name?.split(' ')[0] || t('studentDefault')}
+            </Text>
+            <Text style={styles.headerTitle}>{t('appTitle')}</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <TouchableOpacity
+              style={[styles.ccHubBtn, { backgroundColor: '#1E293B' }]}
+              onPress={toggleLang}
+            >
+              <Ionicons name="language" size={13} color="#FDE047" />
+              <Text style={styles.ccHubBtnText}>
+                {lang === 'pt' ? '🇧🇷 PT | EN' : '🇬🇧 EN | PT'}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.ccHubBtn}
-              onPress={() => openCampusConnectHub('#caronas')}
+              onPress={() => navigation.navigate('CampusConnect')}
             >
-              <Ionicons name="globe-outline" size={14} color="#FFFFFF" />
-              <Text style={styles.ccHubBtnText}>Campus Connect ↗</Text>
+              <Ionicons name="planet" size={13} color="#FFFFFF" />
+              <Text style={styles.ccHubBtnText}>Campus Hub</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileBadge}
@@ -338,7 +350,7 @@ const HomeScreen = ({ navigation }) => {
               style={{ marginRight: 5 }}
             />
             <Text style={[styles.segmentText, activeTab === 'rides' && styles.segmentTextActive]}>
-              Ofertas ({filteredRides.length})
+              {t('segOffers')} ({filteredRides.length})
             </Text>
           </TouchableOpacity>
 
@@ -353,7 +365,7 @@ const HomeScreen = ({ navigation }) => {
               style={{ marginRight: 5 }}
             />
             <Text style={[styles.segmentText, activeTab === 'requests' && styles.segmentTextActive]}>
-              Mural ({filteredRequests.length})
+              {t('segMural')} ({filteredRequests.length})
             </Text>
           </TouchableOpacity>
 
@@ -368,7 +380,7 @@ const HomeScreen = ({ navigation }) => {
               style={{ marginRight: 5 }}
             />
             <Text style={[styles.segmentText, activeTab === 'events' && styles.segmentTextActive]}>
-              Eventos CC ({campusEvents.length})
+              {t('segEvents')} ({campusEvents.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -380,10 +392,10 @@ const HomeScreen = ({ navigation }) => {
             style={styles.searchInput}
             placeholder={
               activeTab === 'rides'
-                ? 'Buscar caronas (ICEA, Bauxita...)'
+                ? t('searchRidesPlaceholder')
                 : activeTab === 'requests'
-                ? 'Buscar pedidos no mural...'
-                : 'Buscar eventos acadêmicos no Campus Connect...'
+                ? t('searchMuralPlaceholder')
+                : t('searchEventsPlaceholder')
             }
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -403,15 +415,15 @@ const HomeScreen = ({ navigation }) => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipsScrollContainer}
           >
-            {renderFilterChip('all', 'Todas')}
-            {renderFilterChip('women-only', 'Elas por Elas 🌸')}
-            {renderFilterChip('available', 'Com Vagas', 'checkmark-circle-outline')}
-            {renderFilterChip('today', 'Hoje', 'calendar-outline')}
-            {renderFilterChip('morning', 'Manhã (05h-12h)', 'sunny-outline')}
-            {renderFilterChip('afternoon', 'Tarde (12h-18h)', 'partly-sunny-outline')}
-            {renderFilterChip('night', 'Noite (18h+)', 'moon-outline')}
+            {renderFilterChip('all', t('chipAll'))}
+            {renderFilterChip('women-only', t('chipWomenOnly'))}
+            {renderFilterChip('available', t('chipAvailable'), 'checkmark-circle-outline')}
+            {renderFilterChip('today', t('chipToday'), 'calendar-outline')}
+            {renderFilterChip('morning', t('chipMorning'), 'sunny-outline')}
+            {renderFilterChip('afternoon', t('chipAfternoon'), 'partly-sunny-outline')}
+            {renderFilterChip('night', t('chipNight'), 'moon-outline')}
             {(user?.userType === 'driver' || user?.userType === 'both') &&
-              renderFilterChip('my-rides', 'Minhas Caronas', 'car-outline')}
+              renderFilterChip('my-rides', t('chipMyRides'), 'car-outline')}
           </ScrollView>
         )}
       </View>
@@ -479,7 +491,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.muralBanner}>
               <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
               <Text style={styles.muralBannerText}>
-                Não encontrou carona no horário? Publique seu pedido e os motoristas da UFOP entram em contato com você pelo WhatsApp!
+                {t('muralBanner')}
               </Text>
             </View>
           }
@@ -488,7 +500,7 @@ const HomeScreen = ({ navigation }) => {
               icon="megaphone-outline"
               title="Mural de Pedidos vazio"
               message="Nenhum estudante solicitou carona no momento. Seja o primeiro a pedir!"
-              actionLabel="Pedir uma Carona Agora"
+              actionLabel={t('requestRideAction')}
               onAction={handleOpenRequestModal}
             />
           }
@@ -511,7 +523,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.muralBanner}>
               <Ionicons name="globe-outline" size={20} color="#6849FF" style={{ marginRight: 8 }} />
               <Text style={styles.muralBannerText}>
-                Eventos sincronizados com o Campus Connect! Ofereça ou peça carona diretamente para eventos e grupos de estudo da UFOP ICEA.
+                {t('eventsBanner')}
               </Text>
             </View>
           }
@@ -536,13 +548,13 @@ const HomeScreen = ({ navigation }) => {
                 <View style={styles.routeItem}>
                   <Ionicons name="calendar-outline" size={12} color={COLORS.primary} style={styles.routeDot} />
                   <Text style={styles.routeText}>
-                    <Text style={styles.routeLabel}>Horário: </Text>{item.dateTimeLabel}
+                    <Text style={styles.routeLabel}>{t('timeLabel')}</Text>{item.dateTimeLabel}
                   </Text>
                 </View>
                 <View style={styles.routeItem}>
                   <Ionicons name="location" size={12} color={COLORS.accent} style={styles.routeDot} />
                   <Text style={styles.routeText}>
-                    <Text style={styles.routeLabel}>Local: </Text>{item.venueDetail || item.venue}
+                    <Text style={styles.routeLabel}>{t('venueLabel')}</Text>{item.venueDetail || item.venue}
                   </Text>
                 </View>
               </View>
@@ -565,7 +577,7 @@ const HomeScreen = ({ navigation }) => {
                   }
                 >
                   <Ionicons name="car-sport" size={15} color="#FFFFFF" />
-                  <Text style={styles.offerRideBtnText}>Oferecer Carona p/ Evento</Text>
+                  <Text style={styles.offerRideBtnText}>{t('offerRideForEvent')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -578,7 +590,7 @@ const HomeScreen = ({ navigation }) => {
                   }}
                 >
                   <Ionicons name="megaphone" size={14} color="#FFFFFF" />
-                  <Text style={styles.offerRideBtnText}>Pedir no Mural</Text>
+                  <Text style={styles.offerRideBtnText}>{t('askOnMural')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -596,7 +608,7 @@ const HomeScreen = ({ navigation }) => {
             activeOpacity={0.85}
           >
             <Ionicons name="add" size={26} color={COLORS.surface} />
-            <Text style={styles.fabText}>Oferecer Carona</Text>
+            <Text style={styles.fabText}>{t('offerRideAction')}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity 
@@ -605,7 +617,7 @@ const HomeScreen = ({ navigation }) => {
             activeOpacity={0.85}
           >
             <Ionicons name="megaphone-outline" size={22} color={COLORS.surface} />
-            <Text style={styles.fabText}>Pedir Carona</Text>
+            <Text style={styles.fabText}>{t('requestRideAction')}</Text>
           </TouchableOpacity>
         )
       ) : (
@@ -615,7 +627,7 @@ const HomeScreen = ({ navigation }) => {
           activeOpacity={0.85}
         >
           <Ionicons name="add" size={26} color={COLORS.surface} />
-          <Text style={styles.fabText}>Novo Pedido</Text>
+          <Text style={styles.fabText}>{t('newRequestAction')}</Text>
         </TouchableOpacity>
       )}
 

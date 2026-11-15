@@ -186,7 +186,11 @@ graph TD
 ### 2. Caronas ICEA (`c:\Projects\CaronaDaICEA-main`) Enhancements
 - **Campus Connect Service Bridge ([src/services/campusConnectService.js](src/services/campusConnectService.js)):** Connects `Caronas ICEA` to `Campus Connect` (`http://localhost:5173` and `/api/events`), syncs newly published rides into shared `localStorage` (`cc_caronas_icea_rides_v1`), and provides 1-click deep-linking to Campus Connect.
 - **Eventos CC Tab & Header Bridge ([src/screens/HomeScreen.js](src/screens/HomeScreen.js) & [src/screens/CreateRideScreen.js](src/screens/CreateRideScreen.js)):**
-  - Added a **`Campus Connect ↗`** button in the top header and a 3rd segmented tab **`Eventos CC`** displaying synchronized Campus Connect events with 1-click **"Oferecer Carona p/ Evento"** (auto-filling destination and event notes in `CreateRideScreen`) and **"Pedir no Mural"**.
+  - Added a **`Campus Hub`** button in the top header and a 3rd segmented tab **`Eventos CC / CC Events`** displaying synchronized Campus Connect events with 1-click **"Oferecer Carona p/ Evento / Offer Ride"** (auto-filling destination and event notes in `CreateRideScreen`) and **"Pedir no Mural / Request Ride"**.
+- **Full Native Campus Connect Hub & Bilingual (`PT-BR` ⇄ `EN`) Super-App ([src/context/LanguageContext.js](src/context/LanguageContext.js) & [src/screens/CampusConnectScreen.js](src/screens/CampusConnectScreen.js)):**
+  - Added global `LanguageProvider` (`cc_icea_lang_v1`) supporting instant switching between **Português (`🇧🇷 PT`)** and **English (`🇬🇧 EN`)** across both applications.
+  - Added the native **Campus Connect** bottom tab (`CampusConnectScreen.js`) with 4 sub-tabs: **Eventos & Mapa / Events & Map**, **Comunidade & Grupos / Social & Groups**, **Chats & Disciplinas / Chats & Modules**, and **Carteirinha & Módulos / Student ID & Modules**, plus an **Embedded Mobile App (`📱 App Mobile Integrado`)** tab inside Campus Connect Web (`http://localhost:5173`).
+
 
 
 
