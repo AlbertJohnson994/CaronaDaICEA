@@ -13,7 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import UfopLogo, { openUfopUrl } from '../components/UfopLogo';
+import UfopCampusMap3D2D from '../components/UfopCampusMap3D2D';
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY, UFOP_LINKS } from '../constants/theme';
 import {
   DEFAULT_CAMPUS_CONNECT_EVENTS,
   getCampusConnectEvents,
@@ -260,15 +262,22 @@ const CampusConnectScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Unified Super-App Top Header with PT / EN Switcher */}
+      {/* Unified Super-App Top Header with UFOP Logo & PT / EN Switcher */}
       <View style={styles.heroHeader}>
         <View style={styles.heroTopRow}>
-          <View style={styles.heroBadge}>
-            <Ionicons name="sparkles" size={12} color="#FDE047" />
-            <Text style={styles.heroBadgeText}>{t('ccHeroBadge')}</Text>
-          </View>
+          <UfopLogo size="sm" light showSubtitle={false} />
 
           <View style={styles.headerRightBtns}>
+            <TouchableOpacity
+              style={[styles.langToggleBtn, { backgroundColor: COLORS.accent }]}
+              onPress={() => openUfopUrl(UFOP_LINKS.portal)}
+            >
+              <Ionicons name="globe-outline" size={14} color={COLORS.primaryDark} />
+              <Text style={[styles.langToggleText, { color: COLORS.primaryDark }]}>
+                ufop.br ↗
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.langToggleBtn} onPress={toggleLang}>
               <Ionicons name="language" size={14} color="#FFFFFF" />
               <Text style={styles.langToggleText}>
@@ -280,7 +289,7 @@ const CampusConnectScreen = ({ navigation }) => {
               style={styles.externalWebBtn}
               onPress={() => openCampusConnectHub('#events')}
             >
-              <Ionicons name="open-outline" size={14} color="#E2E8F0" />
+              <Ionicons name="open-outline" size={14} color="#F3E5AB" />
             </TouchableOpacity>
           </View>
         </View>
@@ -381,100 +390,117 @@ const CampusConnectScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Interactive Campus Map Visual Canvas */}
+          {/* Interactive 3D Sketchfab + 3D Campus Blocks + 2D OpenStreetMap for All 3 UFOP Campuses */}
           {eventsViewMode === 'map' && (
-            <View style={styles.campusMapCanvas}>
-              <View style={styles.mapGridOverlay}>
-                <Text style={styles.mapCampusZoneLabel}>
-                  📍 UFOP CAMPUS ICEA (JOÃO MONLEVADE) & OSNABRÜCK WESTERBERG
-                </Text>
-                <View style={styles.mapPinsContainer}>
-                  {events.map((ev, idx) => {
-                    const isSelected = selectedMapPin?.id === ev.id;
-                    return (
-                      <TouchableOpacity
-                        key={ev.id}
-                        style={[
-                          styles.mapPinBubble,
-                          isSelected && styles.mapPinBubbleSelected,
-                          {
-                            top: 16 + (idx % 3) * 44,
-                            left: 12 + (idx * 21) % 70 + '%',
-                          },
-                        ]}
-                        onPress={() => setSelectedMapPin(ev)}
-                      >
-                        <Ionicons
-                          name={
-                            ev.category === 'Sport'
-                              ? 'football'
-                              : ev.category === 'Eat'
-                              ? 'restaurant'
-                              : 'school'
-                          }
-                          size={13}
-                          color="#FFFFFF"
-                        />
-                        <Text style={styles.mapPinText} numberOfLines={1}>
-                          {ev.title.split(' ')[0]}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+            <>
+              <UfopCampusMap3D2D
+                lang={lang}
+                initialCampusId="joao-monlevade"
+                initialMode="sketchfab3d"
+                height={370}
+                onSelectBuildingRide={(bldg, campus) =>
+                  navigation.navigate('CreateRide', {
+                    prefillTo: `${bldg.code} — ${campus.shortPt}`,
+                    prefillNotes: `Carona para ${bldg.namePt} (${campus.titlePt})`,
+                  })
+                }
+              />
 
-                {selectedMapPin && (
-                  <View style={styles.mapSelectedCard}>
-                    <View style={styles.eventCardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.eventTitle}>{selectedMapPin.title}</Text>
-                        <Text style={styles.eventSub}>
-                          {selectedMapPin.organizer} · {selectedMapPin.dateTimeLabel}
-                        </Text>
-                      </View>
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryBadgeText}>
-                          {selectedMapPin.category}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.eventDesc}>{selectedMapPin.description}</Text>
-                    <View style={styles.eventActionRow}>
-                      <TouchableOpacity
-                        style={[
-                          styles.primaryActionBtn,
-                          joinedEvents.includes(selectedMapPin.id) &&
-                            styles.joinedActionBtn,
-                        ]}
-                        onPress={() => handleToggleEventJoin(selectedMapPin.id)}
-                      >
-                        <Text style={styles.primaryActionText}>
-                          {joinedEvents.includes(selectedMapPin.id)
-                            ? t('joinedEventBtn')
-                            : t('joinEventBtn')}
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.caronaActionBtn}
-                        onPress={() =>
-                          navigation.navigate('CreateRide', {
-                            prefillTo: selectedMapPin.venue,
-                            prefillEventTitle: selectedMapPin.title,
-                            prefillNotes: `Carona para o evento: ${selectedMapPin.title}`,
-                          })
-                        }
-                      >
-                        <Ionicons name="car-sport" size={14} color="#FFFFFF" />
-                        <Text style={styles.caronaActionText}>
-                          {t('offerRideForEvent')}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+              <View style={styles.campusMapCanvas}>
+                <View style={styles.mapGridOverlay}>
+                  <Text style={styles.mapCampusZoneLabel}>
+                    📍 {lang === 'pt'
+                      ? 'EVENTOS ATIVOS NOS 3 CAMPI UFOP (OURO PRETO · MARIANA · JOÃO MONLEVADE)'
+                      : 'ACTIVE EVENTS ACROSS ALL 3 UFOP CAMPUSES (OURO PRETO · MARIANA · JOÃO MONLEVADE)'}
+                  </Text>
+                  <View style={styles.mapPinsContainer}>
+                    {events.map((ev, idx) => {
+                      const isSelected = selectedMapPin?.id === ev.id;
+                      return (
+                        <TouchableOpacity
+                          key={ev.id}
+                          style={[
+                            styles.mapPinBubble,
+                            isSelected && styles.mapPinBubbleSelected,
+                            {
+                              top: 16 + (idx % 3) * 44,
+                              left: 12 + ((idx * 21) % 70) + '%',
+                            },
+                          ]}
+                          onPress={() => setSelectedMapPin(ev)}
+                        >
+                          <Ionicons
+                            name={
+                              ev.category === 'Sport'
+                                ? 'football'
+                                : ev.category === 'Eat'
+                                ? 'restaurant'
+                                : 'school'
+                            }
+                            size={13}
+                            color="#FFFFFF"
+                          />
+                          <Text style={styles.mapPinText} numberOfLines={1}>
+                            {ev.title.split(' ')[0]}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                )}
+
+                  {selectedMapPin && (
+                    <View style={styles.mapSelectedCard}>
+                      <View style={styles.eventCardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.eventTitle}>{selectedMapPin.title}</Text>
+                          <Text style={styles.eventSub}>
+                            {selectedMapPin.organizer} · {selectedMapPin.dateTimeLabel}
+                          </Text>
+                        </View>
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryBadgeText}>
+                            {selectedMapPin.category}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.eventDesc}>{selectedMapPin.description}</Text>
+                      <View style={styles.eventActionRow}>
+                        <TouchableOpacity
+                          style={[
+                            styles.primaryActionBtn,
+                            joinedEvents.includes(selectedMapPin.id) &&
+                              styles.joinedActionBtn,
+                          ]}
+                          onPress={() => handleToggleEventJoin(selectedMapPin.id)}
+                        >
+                          <Text style={styles.primaryActionText}>
+                            {joinedEvents.includes(selectedMapPin.id)
+                              ? t('joinedEventBtn')
+                              : t('joinEventBtn')}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.caronaActionBtn}
+                          onPress={() =>
+                            navigation.navigate('CreateRide', {
+                              prefillTo: selectedMapPin.venue,
+                              prefillEventTitle: selectedMapPin.title,
+                              prefillNotes: `Carona para o evento: ${selectedMapPin.title}`,
+                            })
+                          }
+                        >
+                          <Ionicons name="car-sport" size={14} color="#FFFFFF" />
+                          <Text style={styles.caronaActionText}>
+                            {t('offerRideForEvent')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
+            </>
           )}
 
           {/* Events Cards List */}
@@ -917,7 +943,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   heroHeader: {
-    backgroundColor: '#241758',
+    backgroundColor: COLORS.primaryDark,
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.accent,
     paddingTop: SPACING.md,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.md,
@@ -1327,7 +1355,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   studentIdCard: {
-    backgroundColor: '#3B27BA',
+    backgroundColor: COLORS.primary,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
     borderRadius: RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,

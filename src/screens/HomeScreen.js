@@ -23,7 +23,9 @@ import RideCard from '../components/RideCard';
 import SkeletonCard from '../components/SkeletonCard';
 import EmptyState from '../components/EmptyState';
 import ToastNotification from '../components/ToastNotification';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import UfopCampusMap3D2D from '../components/UfopCampusMap3D2D';
+import { openUfopUrl } from '../components/UfopLogo';
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY, UFOP_LINKS } from '../constants/theme';
 import { formatDate, formatTime, openDirectWhatsApp } from '../utils/formatters';
 import {
   DEFAULT_CAMPUS_CONNECT_EVENTS,
@@ -311,22 +313,20 @@ const HomeScreen = ({ navigation }) => {
             </Text>
             <Text style={styles.headerTitle}>{t('appTitle')}</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <TouchableOpacity
-              style={[styles.ccHubBtn, { backgroundColor: '#1E293B' }]}
-              onPress={toggleLang}
+              style={[styles.ccHubBtn, { backgroundColor: COLORS.primaryDark, borderWidth: 1, borderColor: COLORS.accent }]}
+              onPress={() => openUfopUrl(UFOP_LINKS.portal)}
             >
-              <Ionicons name="language" size={13} color="#FDE047" />
-              <Text style={styles.ccHubBtnText}>
-                {lang === 'pt' ? '🇧🇷 PT | EN' : '🇬🇧 EN | PT'}
-              </Text>
+              <Ionicons name="globe-outline" size={13} color="#F3E5AB" />
+              <Text style={[styles.ccHubBtnText, { color: '#F3E5AB' }]}>ufop.br ↗</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.ccHubBtn}
               onPress={() => navigation.navigate('CampusConnect')}
             >
-              <Ionicons name="planet" size={13} color="#FFFFFF" />
-              <Text style={styles.ccHubBtnText}>Campus Hub</Text>
+              <Ionicons name="cube" size={13} color="#FFFFFF" />
+              <Text style={styles.ccHubBtnText}>3 Campi 3D/2D</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.profileBadge}
@@ -520,11 +520,25 @@ const HomeScreen = ({ navigation }) => {
           })}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={
-            <View style={styles.muralBanner}>
-              <Ionicons name="globe-outline" size={20} color="#6849FF" style={{ marginRight: 8 }} />
-              <Text style={styles.muralBannerText}>
-                {t('eventsBanner')}
-              </Text>
+            <View>
+              <View style={styles.muralBanner}>
+                <Ionicons name="globe-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+                <Text style={styles.muralBannerText}>
+                  {t('eventsBanner')}
+                </Text>
+              </View>
+              <UfopCampusMap3D2D
+                lang={lang}
+                initialCampusId="joao-monlevade"
+                initialMode="sketchfab3d"
+                height={340}
+                onSelectBuildingRide={(bldg, campus) =>
+                  navigation.navigate('CreateRide', {
+                    prefillTo: `${bldg.code} — ${campus.shortPt}`,
+                    prefillNotes: `Carona para ${bldg.namePt} (${campus.titlePt})`,
+                  })
+                }
+              />
             </View>
           }
           renderItem={({ item }) => (

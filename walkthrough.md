@@ -191,6 +191,25 @@ graph TD
   - Added global `LanguageProvider` (`cc_icea_lang_v1`) supporting instant switching between **Português (`🇧🇷 PT`)** and **English (`🇬🇧 EN`)** across both applications.
   - Added the native **Campus Connect** bottom tab (`CampusConnectScreen.js`) with 4 sub-tabs: **Eventos & Mapa / Events & Map**, **Comunidade & Grupos / Social & Groups**, **Chats & Disciplinas / Chats & Modules**, and **Carteirinha & Módulos / Student ID & Modules**, plus an **Embedded Mobile App (`📱 App Mobile Integrado`)** tab inside Campus Connect Web (`http://localhost:5173`).
 
+---
+
+## 🏛️ Part 9: UFOP Institutional Branding, 3-Campus 3D/2D Maps, Sketchfab 3D & Desktop + Mobile App
+
+- **Official UFOP School Colors & Logo ([src/constants/theme.js](src/constants/theme.js) & [src/components/UfopLogo.js](src/components/UfopLogo.js)):**
+  - Applied UFOP's institutional colors: **Vinho / Grená UFOP (`#8C1D40` / `#590D22`)** and **Ouro / Dourado UFOP (`#C59B27` / `#D4AF37`)**.
+  - Created the reusable `UfopLogo` architectural crest and wordmark component used across the Landing Page, Navigation Bars, and Campus Hub.
+- **Sketchfab 3D UFOP Model + Redesigned 3D & 2D Maps for All 3 UFOP Campuses ([src/components/UfopCampusMap3D2D.js](src/components/UfopCampusMap3D2D.js) & [CampusMap.tsx](file:///C:/Projects/campus-connect/apps/web/src/CampusMap.tsx)):**
+  - Embedded the official **Sketchfab 3D UFOP Model** (`https://sketchfab.com/3d-models/universidade-federal-de-ouro-preto-ufop-cb546bc4ac754440bdd75e9ec39cae6f`).
+  - Added interactive **3D Extruded Campus Block Maps** and **2D OpenStreetMap (Leaflet) Internet Maps** for all **3 UFOP Campuses**:
+    1. **Ouro Preto — Campus Morro do Cruzeiro (Sede)** (`Reitoria`, `Escola de Minas`, `ICEB`, `Farmácia/Medicina/Nutrição`, `RU Ouro Preto`, `Portaria Bauxita`)
+    2. **João Monlevade — Campus ICEA** (`Bloco A`, `Bloco B`, `Bloco C - DECSI/DEENP/DEELT`, `RU ICEA`, `Ginásio`, `Portaria Principal`)
+    3. **Mariana — Campus ICHS & ICSA** (`Prédio Histórico ICHS`, `Campus ICSA`, `Auditório ICHS`, `Biblioteca`, `RU Mariana`, `Ponto Intercampi`)
+- **Direct Connection to Official UFOP Portal (`https://ufop.br/`):**
+  - Connected header and landing page quick-links directly to `https://ufop.br/`, `https://minha.ufop.br/`, `https://icea.ufop.br/`, and `https://ichs.ufop.br/`.
+- **Desktop App & Mobile App Dual Mode ([src/navigation/AppNavigator.js](src/navigation/AppNavigator.js) & [desktop/main.js](desktop/main.js)):**
+  - Added instant **`🖥️ Desktop App ⇄ 📱 Mobile App`** layout switching across both `http://localhost:8081` and `http://localhost:5173`, plus an Electron desktop launcher (`npm run desktop`).
+
+
 
 
 
